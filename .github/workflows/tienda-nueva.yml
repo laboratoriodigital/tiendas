@@ -1,0 +1,182 @@
+# Dar de alta una tienda: crear su repositorio, configurarlo y dejarle puestos
+# sus secretos.
+#
+# ═══ ESTE ARCHIVO NO CORRE AQUÍ ═══
+# Vive en `servicio/` y no en `.github/workflows/` a propósito. Este repositorio
+# es la PLANTILLA: pedirle el nombre de un repositorio nuevo desde dentro de un
+# repositorio que ya es el nuevo no tiene sentido, y cada tienda heredaría en su
+# copia un flujo que no va a usar nunca.
+#
+# Va copiado en `.github/workflows/tienda-nueva.yml` del repositorio de
+# servicio, `laboratoriodigital/tiendas`, que es donde vive el único secreto
+# capaz de crear repositorios. Aquí se queda versionado y con sus aserciones,
+# que es lo que impide que las dos copias se separen.
+#
+# ═══ EL SECRETO QUE NECESITA ES EL MÁS PODEROSO DEL PRODUCTO ═══
+# ALTA_TOKEN puede crear repositorios, escribir secretos y cambiar ajustes en
+# ellos. El GITHUB_TOKEN de un flujo NO PUEDE hacer ninguna de las tres cosas,
+# así que no hay forma de evitarlo; lo que sí se puede es tenerlo en UN solo
+# repositorio, que ninguna tienda ve, y que sea de grano fino, del dueño de las
+# tiendas, con vencimiento y con exactamente estos permisos:
+#
+#   Repository access:  All repositories  (el de la tienda todavía no existe)
+#   Administration      Read and write    ← crear el repositorio y sus ajustes
+#   Secrets             Read and write    ← poner MAESTRO_URL y MAESTRO_TOKEN
+#   Contents            Read and write    ← ajustar wrangler.jsonc
+#   Workflows           Read and write    ← la plantilla trae .github/workflows
+#
+# ═══ LO QUE NO HACE, A PROPÓSITO ═══
+# No conecta Cloudflare —ese diálogo es del navegador— ni toca nada de Google.
+# Al terminar deja escrito qué sigue.
+name: tienda nueva
+
+on:
+  workflow_dispatch:
+    inputs:
+      repositorio:
+        description: 'Nombre del repositorio nuevo (ej: organico-panaderia)'
+        required: true
+      maestro_url:
+        description: 'URL /exec del maestro de esa tienda (línea Servicio del Diagnóstico)'
+        required: false
+      maestro_token:
+        description: 'Token tk-… de esa tienda (línea Token del Diagnóstico)'
+        required: false
+      plantilla:
+        description: 'Repositorio plantilla'
+        required: false
+        default: 'laboratoriodigital/organico'
+      privado:
+        description: 'Repositorio privado'
+        type: boolean
+        default: false
+
+jobs:
+  crear:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: ¿Hay con qué?
+        env:
+          ALTA_TOKEN: ${{ secrets.ALTA_TOKEN }}
+        run: |
+          if [ -z "$ALTA_TOKEN" ]; then
+            {
+              echo "### Falta el secreto \`ALTA_TOKEN\`"
+              echo ""
+              echo "El \`GITHUB_TOKEN\` de un flujo no puede crear repositorios ni"
+              echo "escribir secretos en otros. Ver el encabezado de este archivo."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          case "${{ inputs.repositorio }}" in
+            *[!a-zA-Z0-9._-]*|"")
+              echo "El nombre del repositorio solo puede llevar letras, números, punto, guion y guion bajo." >&2
+              exit 1;;
+          esac
+
+      - name: Crear el repositorio a partir de la plantilla
+        id: crear
+        env:
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          DUENO: ${{ github.repository_owner }}
+          NOMBRE: ${{ inputs.repositorio }}
+        run: |
+          set -o pipefail
+          if gh repo view "$DUENO/$NOMBRE" > /dev/null 2>&1; then
+            echo "Ya existe $DUENO/$NOMBRE. No toco nada." >&2
+            exit 1
+          fi
+          gh api "repos/${{ inputs.plantilla }}/generate" \
+            -f owner="$DUENO" -f name="$NOMBRE" \
+            -f description="Tienda en línea de $NOMBRE" \
+            -F private=${{ inputs.privado }} \
+            -F include_all_branches=false > /dev/null
+          echo "repo=$DUENO/$NOMBRE" >> "$GITHUB_OUTPUT"
+
+      # El paso que se olvidaba a mano, y el que más caro sale: dos tiendas con
+      # el mismo "name" son el mismo Worker, y la segunda pisa a la primera. En
+      # el equipo esa colisión la detecta `npm run tienda`; desde el navegador
+      # no la detecta nadie.
+      - name: Ponerle su propio nombre en wrangler.jsonc
+        env:
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          REPO: ${{ steps.crear.outputs.repo }}
+          NOMBRE: ${{ inputs.repositorio }}
+        run: |
+          set -o pipefail
+          for i in 1 2 3 4 5; do
+            if gh api "repos/$REPO/contents/wrangler.jsonc" > /tmp/w.json 2>/dev/null; then break; fi
+            echo "El repositorio todavía se está creando; espero…"; sleep 5
+          done
+          sha=$(node -pe "require('/tmp/w.json').sha")
+          node -e '
+            const fs = require("fs");
+            const j = require("/tmp/w.json");
+            const texto = Buffer.from(j.content, "base64").toString("utf8");
+            const nuevo = texto.replace(/"name":\s*"[^"]*"/, `"name": "${process.env.NOMBRE}"`);
+            if (nuevo === texto) { console.error("No encontré la clave name en wrangler.jsonc"); process.exit(1); }
+            fs.writeFileSync("/tmp/w.b64", Buffer.from(nuevo, "utf8").toString("base64"));
+          '
+          gh api -X PUT "repos/$REPO/contents/wrangler.jsonc" \
+            -f message="refactor/frontend: el sitio de esta tienda tiene su propio nombre" \
+            -f content="$(cat /tmp/w.b64)" -f sha="$sha" > /dev/null
+
+      # La casilla que, sin marcar, deja que `montaje` corra entero, funcione, y
+      # falle en la última línea al abrir el pull request. Era el paso manual
+      # más fácil de olvidar del runbook, y ahora no es manual.
+      - name: Dejar que Actions abra pull requests, y limpiar las ramas
+        env:
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          REPO: ${{ steps.crear.outputs.repo }}
+        run: |
+          gh api -X PUT "repos/$REPO/actions/permissions/workflow" \
+            -f default_workflow_permissions=write \
+            -F can_approve_pull_request_reviews=true > /dev/null
+          # `fotos` fusiona con --squash --delete-branch: si el repositorio no
+          # admite squash, ese flujo se queda a medias cada cuatro horas.
+          gh api -X PATCH "repos/$REPO" \
+            -F allow_squash_merge=true -F delete_branch_on_merge=true > /dev/null
+
+      - name: Dejarle puestos los dos secretos
+        id: secretos
+        env:
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          REPO: ${{ steps.crear.outputs.repo }}
+          URL: ${{ inputs.maestro_url }}
+          TOKEN: ${{ inputs.maestro_token }}
+        run: |
+          puestos="ninguno"
+          if [ -n "$URL" ] && [ -n "$TOKEN" ]; then
+            case "$URL" in
+              https://script.google.com/macros/s/*/exec) ;;
+              *) echo "MAESTRO_URL tiene que terminar en /exec. La /dev solo sirve para el dueño del proyecto." >&2; exit 1;;
+            esac
+            case "$TOKEN" in tk-*) ;; *) echo "El token empieza por tk-." >&2; exit 1;; esac
+            gh secret set MAESTRO_URL   --repo "$REPO" --body "$URL"
+            gh secret set MAESTRO_TOKEN --repo "$REPO" --body "$TOKEN"
+            puestos="MAESTRO_URL y MAESTRO_TOKEN"
+          fi
+          echo "puestos=$puestos" >> "$GITHUB_OUTPUT"
+
+      - name: Qué sigue
+        run: |
+          {
+            echo "### ${{ steps.crear.outputs.repo }}"
+            echo ""
+            echo "https://github.com/${{ steps.crear.outputs.repo }}"
+            echo ""
+            echo "- \`wrangler.jsonc\` ya dice \`${{ inputs.repositorio }}\`"
+            echo "- Actions ya puede abrir pull requests, y las ramas se borran al fusionar"
+            echo "- Secretos puestos: ${{ steps.secretos.outputs.puestos }}"
+            echo ""
+            echo "**Falta, y solo se puede a mano:**"
+            echo ""
+            echo "1. Cloudflare > Workers & Pages > Create > Connect to Git > este repositorio."
+            echo "   Build command vacío, Deploy command \`npx wrangler deploy\`, Path \`/\`."
+            echo "2. El bloque D del runbook: cuenta de Google, hoja, maestro, \`instalar()\`."
+            if [ "${{ steps.secretos.outputs.puestos }}" = "ninguno" ]; then
+              echo "3. Los secretos \`MAESTRO_URL\` y \`MAESTRO_TOKEN\`, que salen del"
+              echo "   menú de la hoja > Diagnóstico."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
