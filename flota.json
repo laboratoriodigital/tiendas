@@ -58,6 +58,13 @@
       "linea": "tienda",
       "anillo": 2,
       "sitio": "https://prueba-panel.laboratorio-digital.com"
+    },
+    {
+      "nombre": "prueba1",
+      "repo": "laboratoriodigital/prueba1",
+      "linea": "tienda",
+      "anillo": 2,
+      "sitio": "https://prueba1.laboratorio-digital.com"
     }
   ],
   "dominio": "laboratorio-digital.com"
