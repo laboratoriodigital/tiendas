@@ -46,10 +46,19 @@ permisos, fusiones automáticas y `SEMILLA_TOKEN`, y la agrega a `flota.json`.
 `A0_instalar`, la implementación y el stub. El Diagnóstico de la hoja da la URL
 y el token.
 
-**3. `conectar`** — el nombre, la URL y el token. Le pregunta al maestro por
-su hoja y su proyecto, le escribe a la hoja el comercio, la dirección y el
-repositorio (sin pisar lo que ya esté), pone los cuatro secretos y dispara el
-primer montaje.
+**3. `conectar`** — **dónde está**: github.com/laboratoriodigital/tiendas ›
+pestaña **Actions** › en la lista de la izquierda, **conectar** › botón **Run
+workflow** a la derecha ([enlace directo](https://github.com/laboratoriodigital/tiendas/actions/workflows/conectar.yml);
+también el botón *Conectar* del panel de la flota y el Diagnóstico de la
+hoja). Aparece cuando `conectar.yml` está en `main`. Tres campos: el nombre
+corto, el *Servicio* y el *Token* que da `diagnosticoCompleto()` en el editor
+del maestro. Le pregunta al maestro su hoja y su proyecto, escribe en la hoja
+el comercio, la dirección y el repositorio, pone los cuatro secretos, le pone
+al maestro su permiso de GitHub y dispara el primer montaje.
+
+**A mano queda solo `CLASPRC`**, la credencial de Google de la tienda
+(`clasp login --no-localhost` con su cuenta), para publicar el maestro desde
+GitHub.
 
 **4. Cloudflare**, cuando ese montaje termine: Import a repository. Al final a
 propósito: conectado antes, publicaría lo que todavía no es esta tienda.
@@ -112,6 +121,7 @@ Solo se actualiza a versiones **publicadas con release** (etiquetas `vX.Y.Z`).
 |---|---|---|
 | `ALTA_TOKEN` | crear repositorios, llenarlos, ponerles secretos y disparar su montaje | **del mismo dueño de las tiendas**, sobre todos sus repositorios: *Administration*, *Secrets*, *Contents*, *Workflows*, *Actions* en escritura |
 | `FLOTA_TOKEN` | leer semillas, empujar ramas, abrir y fusionar pull requests, disparar y esperar montajes | los de la flota: *Contents*, *Pull requests*, *Workflows*, *Actions* en escritura |
+| `DISPARO_TOKEN` | `conectar` se lo pone al maestro de cada tienda como `GITHUB_TOKEN`: Publicar y Actualizar desde el panel | todos los repositorios de las tiendas: **solo** *Actions* en escritura |
 | `SEMILLA_TOKEN` | el alta lo copia a cada tienda Panel para que se actualice sola con sus flujos | la semilla en lectura; las tiendas con *Contents* y *Workflows* en escritura |
 
 > **Orgánico no tenía la etiqueta `v3.6.1`**, la versión de la que salió

@@ -1,5 +1,19 @@
 # CONECTAR UNA TIENDA CON SU HOJA — el segundo paso del alta.
 #
+# DÓNDE ESTÁ: github.com/laboratoriodigital/tiendas › pestaña Actions › en la
+# lista de la izquierda, «conectar» › botón «Run workflow» (a la derecha).
+# Enlace directo: https://github.com/laboratoriodigital/tiendas/actions/workflows/conectar.yml
+# Lo da también el Diagnóstico de la hoja, y el botón «Conectar» del panel de
+# la flota. (Aparece solo cuando este archivo está en `main`.)
+#
+# ═══ SECRETOS (en este repositorio) ═══
+#   ALTA_TOKEN     pone los secretos en la tienda y dispara su montaje.
+#   DISPARO_TOKEN  opcional (0.16.0 · 3.4): de grano fino, del dueño de las
+#                  tiendas, sobre todos sus repositorios, SOLO *Actions: Read
+#                  and write*. Se le pone al maestro como GITHUB_TOKEN para que
+#                  Publicar y Actualizar funcionen desde el panel y el menú.
+#                  Lo más que permite es disparar flujos de las tiendas.
+#
 # TRES CAMPOS, los que da el menú de la hoja › Diagnóstico. Lo demás lo
 # averigua (flota/conectar.mjs): la hoja y el proyecto se los pregunta al
 # maestro; el repositorio, el comercio y la dirección los sabe flota.json, y
@@ -46,6 +60,7 @@ jobs:
           NOMBRE: ${{ inputs.nombre }}
           MAESTRO_URL: ${{ inputs.maestro_url }}
           MAESTRO_TOKEN: ${{ inputs.maestro_token }}
+          DISPARO_TOKEN: ${{ secrets.DISPARO_TOKEN }}
         run: node flota/conectar.mjs
 
       - name: Los secretos de la tienda, y su primer montaje

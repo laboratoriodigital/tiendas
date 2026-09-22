@@ -184,7 +184,9 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   const md = lista(flota, Object.assign({ comercio: 'Café La Esquina', linea: 'tienda' }, v));
   ok('  ...y la lista de lo que falta trae los datos de ESTA tienda: Google, Cloudflare, conectar, el panel',
      /Café La Esquina/.test(md) && /Import a\s+repository › `laboratoriodigital\/cafe-la-esquina`/.test(md) && /conectar/.test(md) && /admin\.html/.test(md) &&
-     /GITHUB_TOKEN/.test(md));
+     /actions\/workflows\/conectar\.yml/.test(md));
+  ok('  ...y a mano solo queda CLASPRC (el token lo da diagnosticoCompleto, no el menú)',
+     /Lo único que queda a mano: `CLASPRC`/.test(md) && /diagnosticoCompleto/.test(md) && !/Propiedades del script del maestro como `GITHUB_TOKEN`/.test(md));
   const mdB = lista(flota, Object.assign({ comercio: 'Pan', linea: 'organico' }, validar(flota, { nombre: 'pan', comercio: 'Pan', linea: 'organico' })));
   ok('  ...y a una Tienda Básica no le promete panel: la hoja es el panel', !/admin\.html/.test(mdB) && /La hoja es el panel/.test(mdB));
   ok('  ...y en la lista Cloudflare va DESPUÉS de conectar: conectado antes, publicaría lo que no es esta tienda',
@@ -239,6 +241,13 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /dijo que no/.test(problemaDeIdentidad({ ok: false, error: 'Token que no corresponde' })));
   ok('  ...ni la hoja de OTRA tienda', /otra tienda/.test(problemaDeIdentidad(Object.assign({}, bien, { repositorio: 'laboratoriodigital/organico' }))));
   const sem = sembrado(fila);
+  const { textoDelPermiso } = await import('./conectar.mjs');
+  ok('  ...le pone al maestro su permiso de GitHub, y dice qué pasó en cada caso',
+     /puesto/.test(textoDelPermiso({ ok: true, puesto: true }, true)) && /no se tocó/.test(textoDelPermiso({ ok: true, puesto: false, yaEstaba: true }, true)) &&
+     /DISPARO_TOKEN/.test(textoDelPermiso(null, false)) && /a mano/.test(textoDelPermiso({ ok: false, error: 'Acción desconocida: permiso' }, true)));
+  const flujoC = readFileSync(new URL('../.github/workflows/conectar.yml', import.meta.url), 'utf8');
+  ok('  ...con DISPARO_TOKEN, que solo pide Actions, y por POST', /DISPARO_TOKEN: \$\{\{ secrets\.DISPARO_TOKEN \}\}/.test(flujoC) &&
+     /method: 'POST'/.test(readFileSync(new URL('./conectar.mjs', import.meta.url), 'utf8')));
   ok('  ...y le escribe a la hoja el comercio, la dirección y el repositorio', sem.negocio === 'Café La Esquina' &&
      sem.sitio_url === fila.sitio && sem.repositorio === fila.repo);
 }

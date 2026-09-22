@@ -118,11 +118,13 @@ export function lista(flota, { repo, comercio, linea, sitio, nombre, etiqueta })
     '      (lo que va entre `/d/` y `/edit`) en `HOJA_ID`, ejecuta **A0_instalar** y autoriza.',
     '   3. Implementar › Nueva implementación › Aplicación web (Ejecutar como: yo · Acceso: cualquiera).',
     '   4. `A1_generarStub` en el maestro, y pega lo que imprime en Extensiones › Apps Script de la hoja.',
-    '   5. En la hoja: menú › **Diagnóstico**: copia la *URL del servicio* y el *token*.',
+    '   5. En el editor del maestro, ejecuta **diagnosticoCompleto** (el menú de la hoja no enseña el token):',
+    '      copia *Servicio* y *Token*. Ahí mismo dice el enlace de *Conectar*.',
     '',
-    `**2. Conectar** — Actions › **conectar**: el nombre \`${nombre}\`, la URL y el token. Nada más:`,
-    '   pregunta al maestro por la hoja y el proyecto, pone los secretos, escribe en la hoja el',
-    '   repositorio y la dirección, y dispara el primer montaje.',
+    `**2. Conectar** — [Actions › conectar](https://github.com/${String(l.semilla || '').split('/')[0]}/tiendas/actions/workflows/conectar.yml)`,
+    `   › **Run workflow**: el nombre \`${nombre}\`, el Servicio y el Token. Nada más: le pregunta al maestro`,
+    '   por la hoja y el proyecto, pone los cuatro secretos, escribe en la hoja el repositorio y la',
+    '   dirección, le pone al maestro su permiso de GitHub y dispara el primer montaje.',
     '',
     `**3. Cloudflare**, cuando ese montaje termine en verde — Workers & Pages › Create › Import a`,
     `   repository › \`${repo}\`. El nombre del sitio ya viene puesto` + (sitio ? ` y \`${sitio.replace('https://', '')}\` lo escribe el montaje.` : '.'),
@@ -131,9 +133,10 @@ export function lista(flota, { repo, comercio, linea, sitio, nombre, etiqueta })
       ? `**4. El panel** — en la hoja, menú › **Clave del panel**, y a entrar en \`${sitio || 'https://<tu tienda>'}/admin.html\`.`
       : '**4. La hoja es el panel** — el comercio trabaja en su hoja; las gráficas están en la pestaña Tablero.',
     '',
-    `**5. Publicar y actualizar desde la ${panel ? 'tienda' : 'hoja'}** — un token de grano fino solo sobre \`${repo}\`,`,
-    '   *Actions: Read and write*, en las Propiedades del script del maestro como `GITHUB_TOKEN`.',
-    '   (Para publicar el maestro desde GitHub, además `CLASPRC` en el repositorio: docs/DESPLIEGUE.md.)'
+    `**5. Lo único que queda a mano: \`CLASPRC\`**, para publicar el maestro desde GitHub (y actualizar solo).`,
+    `   Es la credencial de Google de ESTA tienda: \`clasp login --no-localhost\` con su cuenta y el`,
+    `   contenido de \`~/.clasprc.json\` en ${repo} › Settings › Secrets › Actions › \`CLASPRC\`. Nadie más`,
+    '   puede crearla: es de Google, no de GitHub (docs/DESPLIEGUE.md).'
   ].join('\n');
 }
 
