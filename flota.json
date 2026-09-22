@@ -51,6 +51,13 @@
       "linea": "organico",
       "anillo": 1,
       "sitio": "https://cinnamonbeauty.laboratoriodigital-la.workers.dev"
+    },
+    {
+      "nombre": "prueba-panel",
+      "repo": "laboratoriodigital/prueba-panel",
+      "linea": "tienda",
+      "anillo": 2,
+      "sitio": "https://prueba-panel.laboratorio-digital.com"
     }
   ],
   "dominio": "laboratorio-digital.com"
