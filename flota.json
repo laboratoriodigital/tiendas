@@ -1,29 +1,57 @@
 {
-  "_leeme": "La lista de la flota. La edita una persona. Ver README.md, «La flota». Nada secreto va aquí: ni tokens, ni URLs de maestros.",
+  "_leeme": "La lista de la flota. La edita una persona, o el flujo alta. Ver README.md. Nada secreto va aquí: ni tokens, ni URLs de maestros.",
   "lineas": {
     "tienda": {
+      "producto": "Tienda Panel",
+      "descripcion": "Panel web para el comercio (productos, pedidos, ajustes, colaborador, tablero). Más fácil de manejar; cada gestión pasa por Apps Script, así que es más lenta.",
+      "modo": "montaje",
       "semilla": "laboratoriodigital/tienda",
-      "propios": [
-        "maestro.gs", "plantilla/", "montar/", "pruebas/", "docs/", "servicio/",
-        ".github/workflows/montaje.yml", ".github/workflows/fotos.yml", ".github/workflows/pruebas.yml",
-        "package.json", "CONTRIBUIR.md"
-      ]
+      "_propios": "Los dice la semilla en su semilla.json: en este modo la tienda se actualiza sola."
     },
     "organico": {
+      "producto": "Tienda Básica",
+      "descripcion": "Solo la hoja de cálculo: mismas funciones de venta, sin panel web; más rápida. Gráficas en la hoja; extras de pago posibles.",
+      "modo": "pull-request",
       "semilla": "laboratoriodigital/organico",
       "propios": [
-        "maestro.gs", "montar/", "pruebas/", "docs/", "servicio/", "preparar-fotos.mjs",
-        ".github/workflows/montaje.yml", ".github/workflows/fotos.yml", ".github/workflows/pruebas.yml",
-        "package.json", "CONTRIBUIR.md", "publicar/index.html", "publicar/_headers"
+        "maestro.gs",
+        "montar/",
+        "pruebas/",
+        "docs/",
+        "servicio/",
+        "preparar-fotos.mjs",
+        ".github/workflows/montaje.yml",
+        ".github/workflows/fotos.yml",
+        ".github/workflows/pruebas.yml",
+        "package.json",
+        "CONTRIBUIR.md",
+        "publicar/index.html",
+        "publicar/_headers"
       ]
     }
   },
   "tiendas": [
-    { "nombre": "Laboratorio Digital", "repo": "laboratoriodigital/tienda", "linea": "tienda", "semilla": true,
-      "sitio": "https://tienda.laboratorio-digital.com" },
-    { "nombre": "Orgánico", "repo": "laboratoriodigital/organico", "linea": "organico", "semilla": true,
-      "sitio": "https://organico.laboratoriodigital-la.workers.dev" },
-    { "nombre": "Cinnamon Beauty", "repo": "laboratoriodigital/tienda_cinnamonbeauty", "linea": "organico", "anillo": 1,
-      "sitio": "https://cinnamonbeauty.laboratoriodigital-la.workers.dev" }
-  ]
+    {
+      "nombre": "Laboratorio Digital",
+      "repo": "laboratoriodigital/tienda",
+      "linea": "tienda",
+      "semilla": true,
+      "sitio": "https://tienda.laboratorio-digital.com"
+    },
+    {
+      "nombre": "Orgánico",
+      "repo": "laboratoriodigital/organico",
+      "linea": "organico",
+      "semilla": true,
+      "sitio": "https://organico.laboratoriodigital-la.workers.dev"
+    },
+    {
+      "nombre": "Cinnamon Beauty",
+      "repo": "laboratoriodigital/tienda_cinnamonbeauty",
+      "linea": "organico",
+      "anillo": 1,
+      "sitio": "https://cinnamonbeauty.laboratoriodigital-la.workers.dev"
+    }
+  ],
+  "dominio": "laboratorio-digital.com"
 }

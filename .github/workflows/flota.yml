@@ -1,4 +1,4 @@
-# LA FLOTA (S3 · versión 1)
+# LA FLOTA (S3 · versión 2: automática)
 #
 # Dos acciones, a mano desde Actions › flota › Run workflow:
 #
@@ -7,13 +7,15 @@
 #               actualización esperando. Escribe ESTADO.md en este repositorio.
 #               También corre sola los lunes, para que la tabla no envejezca.
 #
-#   actualizar  Para las tiendas de UNA línea hasta el anillo pedido, abre un
-#               pull request en cada una con la versión nueva de su semilla.
-#               De fábrica en ENSAYO: dice qué haría y no empuja nada.
-#
-# Lo que NO hace: fusionar, publicar el maestro, rehornear. Eso sigue siendo
-# de cada tienda —sus pruebas en el pull request, y su `montaje`, que es el
-# único que tiene sus secretos y ya verifica contra la tienda viva—.
+#   actualizar  Pone al día las tiendas de UNA línea hasta el anillo pedido,
+#               por anillos, y se detiene si una falla.
+#                 · Tienda Panel: dispara el `montaje` de cada tienda con
+#                   `semilla: true` (se actualiza sola, prueba todo y vuelve
+#                   atrás sola) y espera a que termine.
+#                 · Tienda Básica: abre el pull request, espera las pruebas de
+#                   la tienda, lo fusiona y dispara su montaje. Salvo si trae
+#                   publicar/index.html: ese se queda abierto (flota/actualizar.mjs).
+#               De fábrica en ENSAYO: dice qué haría y no toca nada.
 #
 # ═══ EL SECRETO: FLOTA_TOKEN ═══
 # De grano fino, del dueño de las tiendas, con vencimiento. Solo en ESTE
@@ -21,6 +23,7 @@
 #   Contents        Read and write   ← leer la semilla, empujar la rama
 #   Pull requests   Read and write   ← abrir el pull request
 #   Workflows       Read and write   ← la semilla trae .github/workflows/*.yml
+#   Actions         Read and write   ← disparar y esperar el montaje de cada tienda
 #   Metadata        Read             (obligatorio)
 name: flota
 
@@ -52,6 +55,10 @@ on:
         description: 'Ensayo: solo decir qué haría, sin abrir nada'
         type: boolean
         default: true
+      tienda:
+        description: 'Solo esta tienda (dueño/repositorio); vacío = todas las del anillo'
+        required: false
+        default: ''
       sin_base:
         description: 'Si no se sabe de qué versión salió una tienda, los archivos distintos…'
         type: choice
@@ -68,7 +75,8 @@ concurrency:
 jobs:
   flota:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Actualizar espera el montaje de cada tienda, que corre todas las baterías.
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
 
@@ -117,4 +125,5 @@ jobs:
           VERSION: ${{ inputs.version }}
           ENSAYO: ${{ inputs.ensayo }}
           SIN_BASE: ${{ inputs.sin_base }}
+          TIENDA: ${{ inputs.tienda }}
         run: node flota/actualizar.mjs

@@ -60,7 +60,7 @@ async function main() {
   }
   const filas = [];
   for (const t of flota.tiendas || []) {
-    const f = { nombre: t.nombre + (t.semilla ? ' (semilla)' : ''), sitio: t.sitio, linea: t.linea, anillo: t.semilla ? 'semilla' : t.anillo,
+    const f = { nombre: t.nombre + (t.semilla ? ' (semilla)' : ''), sitio: t.sitio, linea: ((flota.lineas || {})[t.linea] || {}).producto || t.linea, anillo: t.semilla ? 'semilla' : t.anillo,
                 versionSemilla: semillas[t.linea] };
     try { f.versionRepo = await versionDelRepo(t.repo); } catch (e) { f.versionRepo = '¿? ' + e.message; }
     Object.assign(f, t.sitio ? await publicado(t.sitio) : {});

@@ -5,117 +5,119 @@ dar de alta una tienda nueva y llevar la **flota** —todas las tiendas
 publicadas— al día. Ninguna tienda ve este repositorio, y los dos secretos
 poderosos (`ALTA_TOKEN`, `FLOTA_TOKEN`) viven solo aquí.
 
+## Dos productos
+
+| | **Tienda Básica** | **Tienda Panel** |
+|---|---|---|
+| Semilla | `laboratoriodigital/organico` (3.x) | `laboratoriodigital/tienda` (0.x) |
+| El comercio trabaja en | su hoja de cálculo | un panel web (y su hoja, si quiere) |
+| Velocidad de gestión | rápida: la hoja es directa | más lenta: cada gestión pasa por Apps Script |
+| Gráficas | en la pestaña Tablero de la hoja; extras posibles | en el panel |
+| Precio | el de entrada | más caro, más fácil de manejar |
+| Se actualiza | por pull request, que la flota fusiona sola | sola: su montaje con la semilla |
+| Tiendas | Orgánico (semilla), Cinnamon Beauty | Laboratorio Digital (semilla); todavía sin hijas |
+
+Las dos venden igual (catálogo, variantes, cupones, envíos, pasarela Bold o
+WhatsApp, rastreo). **No se mezclan**: la hoja de una no es la de la otra, y
+pasar una tienda de producto es darla de alta de nuevo (decisión 20 de la
+semilla `tienda`).
+
 | | Qué | Dónde |
 |---|---|---|
-| Alta | Crear el repositorio de una tienda nueva desde su semilla | Actions › **tienda nueva** |
-| Estado | Qué versión tiene cada tienda, qué contesta publicada, si tiene una actualización esperando | Actions › **flota** › `estado` · [`ESTADO.md`](ESTADO.md) |
-| Actualizar | Abrir en cada tienda un pull request con la versión nueva de su semilla | Actions › **flota** › `actualizar` |
-| Números | Ventas, pedidos por confirmar y agotados de todas las tiendas | La hoja **Panel de tiendas** (`panel.gs`), aparte |
+| Alta | Crear una tienda nueva, de cualquiera de los dos productos | Actions › **alta** |
+| Estado | Qué versión tiene cada tienda y qué contesta publicada | Actions › **flota** › `estado` · [`ESTADO.md`](ESTADO.md) |
+| Actualizar | Poner al día una línea, por anillos | Actions › **flota** › `actualizar` |
+| Números | Ventas, pedidos y agotados de todas las tiendas | La hoja **Panel de tiendas** (`panel.gs`), aparte |
 
 ---
 
-## La flota (S3, versión 1: empezar sencillo)
+## El alta: `alta.yml`
+
+**`crear`** — nombre corto (`cafe-la-esquina`), el comercio, el producto y, si
+quieres, el subdominio (de fábrica, el nombre: `cafe-la-esquina.laboratorio-digital.com`).
+Crea el repositorio desde la semilla, le pone su nombre de sitio, deja a
+Actions escribir y fusionar solo, le copia `SEMILLA_TOKEN` y agrega su fila a
+`flota.json` (anillo 2). **El resumen de la corrida es la lista de lo que
+falta**, con los datos de esa tienda: la cuenta de Google, la hoja y el
+maestro; y conectar el repositorio en Cloudflare (un clic).
+
+**`conectar`** — con la URL del servicio y el token que da el menú de la hoja
+› Diagnóstico: pone los secretos y dispara el primer montaje.
+
+Lo que no se hace desde aquí, y por qué: Google (cada tienda vive en su propia
+cuenta, a propósito) y el diálogo de Cloudflare. Todavía **no ha corrido de
+punta a punta**: la primera vez, míralo paso a paso.
+
+---
+
+## La flota
 
 ### La lista: `flota.json`
 
-Dos **líneas**, cada una con su **semilla** —el repositorio del que salen sus
-tiendas— y la lista de lo que es de la semilla (`propios`):
+Cada línea dice su **producto**, su **semilla** y su **modo** de actualizarse.
+Cada tienda tiene un **anillo**: 0 para la de pruebas, 1 para las primeras, 2
+para el resto. «Hasta el anillo N» va en orden y **se detiene si una falla**.
+Nada secreto va en este archivo (las pruebas lo comprueban).
 
-- **`tienda`** — `laboratoriodigital/tienda`, la segunda generación (0.x). Hoy
-  su única tienda es ella misma (Laboratorio Digital).
-- **`organico`** — `laboratoriodigital/organico`, la primera (3.x). Su semilla
-  es también la tienda Orgánico, y de ella salió **Cinnamon Beauty**.
+### Actualizar
 
-Las dos líneas **no se mezclan**: la hoja de cálculo de una tienda 3.x no es
-la de la 0.x (Pagos, variantes e inventario tienen otras columnas), así que
-pasar Orgánico o Cinnamon a la línea `tienda` es una **migración de su hoja**,
-no una actualización. Está planeada aparte (ver *Lo que viene*).
+- **Tienda Panel (`montaje`)**: la flota dispara el `montaje` de cada tienda con
+  `semilla: true` y espera. La tienda trae la versión nueva, publica el maestro,
+  rehornea, corre TODAS las baterías y publica en main; si algo falla, vuelve
+  atrás el maestro y queda como estaba. Es lo mismo que el botón *Actualizar*
+  del panel y la opción del menú de la hoja.
+- **Tienda Básica (`pull-request`)**: la flota abre el pull request con la
+  versión nueva, espera las pruebas de la tienda, lo fusiona y dispara su
+  montaje. **Excepción**: si trae `publicar/index.html`, se queda abierto
+  (fusionarlo antes del montaje dejaría unos minutos la tienda con el index de
+  la semilla). Se acaba cuando la Básica aprenda a actualizarse sola.
 
-Cada tienda tiene un **anillo**: 0 para la de pruebas, 1 para las primeras,
-2 para el resto. Se actualiza «hasta el anillo N»: primero el 0, se mira, luego
-el 1…
-
-Agregar una tienda es agregar una fila. **Nada secreto va en este archivo**
-(las pruebas lo comprueban).
-
-### Actualizar: la regla
-
-**Sobrescribir lo que es de la semilla, nunca fusionar** — con un matiz que
-Cinnamon Beauty obligó a escribir el primer día: esa tienda había arreglado
-un archivo de la semilla (los ID repetidos del SEO) antes que la semilla
-misma. Pisarlo a ciegas era deshacer el arreglo sin que nadie lo viera. Por
-eso cada archivo se compara contra la versión de la que salió la tienda:
+En las dos, la regla por archivo es la misma —las tres versiones—:
 
 | La tienda… | La semilla… | Qué pasa |
 |---|---|---|
 | no lo tocó | lo cambió | se sobrescribe |
 | lo cambió | no lo cambió | se respeta |
-| lo cambió | también lo cambió | **no se toca** y el pull request lo dice arriba |
+| lo cambió | también lo cambió | **no se toca** y se dice arriba |
 | no lo tiene | lo trae nuevo | se agrega |
 | — | ya no lo trae | no se borra nada |
 | (no se sabe de qué versión salió) | | **no se toca** lo distinto; se lista |
 
-Nunca se toca `publicar/` (salvo lo que la línea declare), `wrangler.jsonc`,
-el README ni `release.yml`. La versión de la tienda (`package.json`) pasa a
-la nueva.
+Solo se actualiza a versiones **publicadas con release** (etiquetas `vX.Y.Z`).
+**De fábrica, en ensayo**: dice qué haría y no toca nada.
 
-### Actualizar: los pasos
+### Los secretos (solo en este repositorio)
 
-1. Actions › **flota** › Run workflow › `actualizar`, la línea, el anillo.
-   **Sale en ensayo**: dice qué haría y enseña el pull request que abriría.
-2. Si se ve bien, lo mismo **sin** la casilla de ensayo: abre un pull request
-   `semilla/vX.Y.Z` en cada tienda.
-3. En cada tienda: **pruebas** en verde → fusionar → **montaje** con la
-   casilla del maestro y `PUBLICAR` (rehornea desde su hoja y publica el
-   maestro verificando contra la tienda viva). Y lo que diga su
-   `docs/ACTUALIZAR-UNA-TIENDA.md` para esa versión (a veces `A0_instalar()`).
+| Secreto | Para qué | Permisos (de grano fino, con vencimiento) |
+|---|---|---|
+| `ALTA_TOKEN` | crear repositorios y ponerles secretos | todos los repositorios: *Administration*, *Secrets*, *Contents*, *Workflows* en escritura |
+| `FLOTA_TOKEN` | leer semillas, empujar ramas, abrir y fusionar pull requests, disparar y esperar montajes | los de la flota: *Contents*, *Pull requests*, *Workflows*, *Actions* en escritura |
+| `SEMILLA_TOKEN` | el alta lo copia a cada tienda Panel para que se actualice sola con sus flujos | la semilla en lectura; las tiendas con *Contents* y *Workflows* en escritura |
 
-Solo se actualiza a versiones **publicadas con release** (etiquetas `vX.Y.Z`),
-nunca a lo que haya en `main`.
-
-> **Orgánico no tenía la etiqueta `v3.6.1`**, que es la versión de la que
-> salió Cinnamon. Sin ella no se puede saber qué archivos cambió Cinnamon por
-> su cuenta, y la flota no toca los que difieran. Se creó el 22-sep sobre
-> `e5863d5` (el commit que subió a 3.6.1); hay que subirla con
+> **Orgánico no tenía la etiqueta `v3.6.1`**, la versión de la que salió
+> Cinnamon. Se creó el 22-sep sobre `e5863d5`; hay que subirla con
 > `git push origin v3.6.1` desde `organico`.
-
-### El secreto `FLOTA_TOKEN`
-
-De grano fino, del dueño de las tiendas, con vencimiento, **solo en este
-repositorio**. Sobre los repositorios de la flota: *Contents* lectura y
-escritura, *Pull requests* lectura y escritura, *Workflows* lectura y
-escritura (la semilla trae flujos), *Metadata* lectura.
 
 ### Las pruebas
 
-`node flota/pruebas.mjs` — sin red ni token. Corren al principio de cada
-corrida del flujo: una regla rota no llega a abrir un pull request.
+`node flota/pruebas.mjs` — sin red ni token, al principio de cada corrida.
 
 ---
 
-## Alta de una tienda: `tienda-nueva.yml`
+## `tienda-nueva.yml` (el de antes)
 
-El flujo vive versionado en la semilla (`servicio/tienda-nueva.yml`, con sus
-aserciones) y se copia aquí. Crea el repositorio a partir de la plantilla, le
-pone su propio `name` en `wrangler.jsonc`, deja que Actions abra pull requests
-y le carga `MAESTRO_URL` y `MAESTRO_TOKEN`. No conecta Cloudflare ni Google:
-eso es el runbook `DESPLIEGUE.md` de la semilla.
-
-Necesita `ALTA_TOKEN` (ver el encabezado del flujo). Al crear una tienda,
-**agrégala a `flota.json`**.
+Lo reemplaza `alta.yml`. Se queda mientras `alta` no haya corrido una vez.
 
 ---
 
 ## Lo que viene (en este orden)
 
-1. **Volver atrás solo**: si el montaje de una tienda actualizada no contesta
-   la versión esperada, reabrir la anterior.
-2. **Montaje desde aquí**: tras fusionar, disparar el montaje de cada tienda y
-   esperar su verificación.
-3. **Un panel web de la flota** (detrás de Cloudflare Access): el estado de
-   `ESTADO.md` más las cifras del Panel de tiendas en una sola pantalla, con
-   los botones de actualizar y publicar.
-4. **Tareas de valor para cada comercio**: el informe mensual, campañas de
-   cupones y avisos de «volvió a llegar» para todas las tiendas a la vez.
-5. **Migrar Orgánico y Cinnamon a la línea `tienda`**: un script que lleva su
-   hoja 3.x a las columnas de la 0.x, ensayado sobre una copia de la hoja.
+1. **La Tienda Básica se actualiza sola**, como la Panel: se acaba la excepción
+   de `publicar/index.html` y hay un solo modo.
+2. **El despliegue en Cloudflare desde Actions** (`wrangler` con un token de
+   Cloudflare): el alta quedaría sin ningún clic fuera de Google.
+3. **Un panel web de la flota** (detrás de Cloudflare Access): el estado y las
+   cifras en una pantalla, con los botones de alta y actualizar.
+4. **Tareas de valor para los comercios**: el informe mensual, campañas de
+   cupones y avisos de «volvió a llegar» para todas las tiendas a la vez; las
+   gráficas de la Básica como extra.

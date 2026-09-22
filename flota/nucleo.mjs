@@ -119,7 +119,7 @@ export function cuerpoDelPR({ tienda, linea, desde, hasta, informe }) {
 /* La tabla del estado de la flota, en Markdown. Una fila por tienda. */
 export function tablaEstado(filas, ahora) {
   const c = v => String(v === undefined || v === null || v === '' ? '—' : v).replace(/\|/g, '\\|');
-  const cab = '| Tienda | Línea | Anillo | Repositorio | Semilla | Maestro vivo | Catálogo publicado | Actualización |\n' +
+  const cab = '| Tienda | Producto | Anillo | Repositorio | Semilla | Maestro vivo | Catálogo publicado | Actualización |\n' +
               '|---|---|---|---|---|---|---|---|';
   const cuerpo = filas.map(f => '| ' + [
     f.sitio ? `[${c(f.nombre)}](${f.sitio})` : c(f.nombre), c(f.linea), c(f.anillo),

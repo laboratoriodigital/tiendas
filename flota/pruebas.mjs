@@ -15,9 +15,14 @@ const flota = JSON.parse(readFileSync(new URL('../flota.json', import.meta.url))
 
 // ═══ flota.json ═══
 ok('FLOTA.JSON: cada tienda nombra una línea que existe', flota.tiendas.every(t => flota.lineas[t.linea]));
-ok('  ...cada línea tiene semilla y lista de propios', Object.values(flota.lineas).every(l => /^[\w.-]+\/[\w.-]+$/.test(l.semilla) && l.propios.length));
+ok('  ...cada línea tiene producto, semilla y modo; las de pull request, su lista de propios',
+   Object.values(flota.lineas).every(l => l.producto && /^[\w.-]+\/[\w.-]+$/.test(l.semilla) && ['montaje', 'pull-request'].includes(l.modo) &&
+     (l.modo === 'montaje' ? !l.propios : l.propios.length)));
+ok('  ...Panel se actualiza sola (montaje) y Básica por pull request, y no se mezclan',
+   flota.lineas.tienda.modo === 'montaje' && flota.lineas.organico.modo === 'pull-request' &&
+   flota.lineas.tienda.semilla !== flota.lineas.organico.semilla);
 ok('  ...ninguna línea se adueña de lo que es de cada tienda (publicar/ entero, wrangler, README, release)',
-   Object.values(flota.lineas).every(l => !l.propios.some(p => p === 'publicar/' || p === 'wrangler.jsonc' || p === 'README.md' ||
+   Object.values(flota.lineas).every(l => !(l.propios || []).some(p => p === 'publicar/' || p === 'wrangler.jsonc' || p === 'README.md' ||
      p === '.github/workflows/release.yml' || p === '.github/' || p === '.github/workflows/')));
 ok('  ...y ningún secreto: ni tokens ni maestros', !/tk-|AKfyc|ghp_|github_pat_/.test(JSON.stringify(flota)));
 ok('  ...Orgánico y Cinnamon Beauty están conectados', flota.tiendas.some(t => /organico$/.test(t.repo)) &&
@@ -132,6 +137,59 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   ok('  ...dice que abriría un pull request, con el arreglo de la tienda sin tocar', /abriría un pull request/.test(salida) &&
      /1 sobrescritos/.test(salida) && /2 sin tocar por desvío/.test(salida) && /montar\/seo\.mjs/.test(salida), salida.replace(/\s+/g, ' ').slice(0, 200));
   ok('  ...y en ensayo no empuja nada', !g(join(origen, 'lab', 'tienda'), 'branch', '--list', 'semilla/*'));
+}
+
+// ═══ Modo montaje (Tienda Panel), en ensayo ═══
+{
+  const { execFileSync } = await import('node:child_process');
+  const origen = mkdtempSync(join(tmpdir(), 'flota-panel-'));
+  const g = (cwd, ...a) => execFileSync('git', a, { cwd, stdio: 'pipe' }).toString().trim();
+  const s = join(origen, 'lab', 'panel'); mkdirSync(s, { recursive: true });
+  g(s, 'init', '-q', '-b', 'main'); g(s, 'config', 'user.email', 'x@x'); g(s, 'config', 'user.name', 'x');
+  writeFileSync(join(s, 'package.json'), '{"version":"0.14.0"}'); g(s, 'add', '-A'); g(s, 'commit', '-qm', '1'); g(s, 'tag', 'v0.14.0');
+  const cfg = join(origen, 'flota.json');
+  writeFileSync(cfg, JSON.stringify({ lineas: { p: { producto: 'Tienda Panel', modo: 'montaje', semilla: 'lab/panel' } },
+    tiendas: [{ nombre: 'Dos', repo: 'lab/dos', linea: 'p', anillo: 2 }, { nombre: 'Cero', repo: 'lab/cero', linea: 'p', anillo: 0 },
+              { nombre: 'Uno', repo: 'lab/uno', linea: 'p', anillo: 1 }] }));
+  let salida = '';
+  try {
+    salida = execFileSync(process.execPath, [new URL('./actualizar.mjs', import.meta.url).pathname], { stdio: 'pipe',
+      env: Object.assign({}, process.env, { FLOTA_TOKEN: 'ficticio', FLOTA_ORIGEN: origen, FLOTA_JSON: cfg, LINEA: 'p', ANILLO: '2',
+                                            ENSAYO: 'true', GITHUB_STEP_SUMMARY: '', PATH: '/usr/bin:/bin' }) }).toString();
+  } catch (e) { salida = 'FALLÓ: ' + String(e.stdout || '') + String(e.stderr || e.message); }
+  const pos = n => salida.indexOf('**' + n + '**');
+  ok('TIENDA PANEL (ensayo): dispara el montaje de cada tienda con la semilla, sin abrir pull requests',
+     /dispararía su \*\*montaje\*\* con la semilla/.test(salida) && !/pull request/.test(salida), salida.replace(/\s+/g, ' ').slice(0, 160));
+  ok('  ...en orden de anillos: 0, luego 1, luego 2', pos('Cero') > 0 && pos('Cero') < pos('Uno') && pos('Uno') < pos('Dos'));
+  ok('  ...y el flujo espera a cada una y se detiene si falla', /run', 'watch'/.test(readFileSync(new URL('./actualizar.mjs', import.meta.url), 'utf8')) &&
+     /Las siguientes no se tocan/.test(readFileSync(new URL('./actualizar.mjs', import.meta.url), 'utf8')));
+}
+
+// ═══ El alta ═══
+{
+  const { validar, agregar, lista, NOMBRE_VALIDO } = await import('./alta.mjs');
+  const v = validar(flota, { nombre: 'cafe-la-esquina', comercio: 'Café La Esquina', linea: 'tienda' });
+  ok('ALTA: un nombre bueno da el repositorio, el subdominio y el sitio', v.errores.length === 0 &&
+     v.repo === 'laboratoriodigital/cafe-la-esquina' && v.sitio === 'https://cafe-la-esquina.laboratorio-digital.com', JSON.stringify(v));
+  ok('  ...un nombre con mayúsculas, espacios o tildes no pasa', validar(flota, { nombre: 'Café Esquina', comercio: 'x', linea: 'tienda' }).errores.length > 0 &&
+     !NOMBRE_VALIDO.test('a') && !NOMBRE_VALIDO.test('-cafe'));
+  ok('  ...ni una línea que no existe, ni sin comercio', validar(flota, { nombre: 'cafe', comercio: 'x', linea: 'otra' }).errores.length === 1 &&
+     validar(flota, { nombre: 'cafe', comercio: '', linea: 'tienda' }).errores.length === 1);
+  ok('  ...ni un repositorio que ya está en la flota', validar(flota, { nombre: 'organico', comercio: 'x', linea: 'organico' }).errores.some(e => /Ya hay/.test(e)));
+  const f2 = agregar(flota, Object.assign({ comercio: 'Café La Esquina', linea: 'tienda' }, v));
+  const fila = f2.tiendas[f2.tiendas.length - 1];
+  ok('  ...la fila nueva entra en el anillo 2, con su sitio, y el resto no cambia', fila.anillo === 2 && fila.sitio === v.sitio &&
+     f2.tiendas.length === flota.tiendas.length + 1 && flota.tiendas.length === JSON.parse(readFileSync(new URL('../flota.json', import.meta.url))).tiendas.length);
+  ok('  ...y otra con el mismo subdominio ya no pasa', validar(f2, { nombre: 'otra', comercio: 'x', linea: 'tienda', subdominio: 'cafe-la-esquina' }).errores.some(e => /subdominio/.test(e)));
+  const md = lista(flota, Object.assign({ comercio: 'Café La Esquina', linea: 'tienda' }, v));
+  ok('  ...y la lista de lo que falta trae los datos de ESTA tienda: Google, Cloudflare, conectar, el panel',
+     /Café La Esquina/.test(md) && /Import a repository › `laboratoriodigital\/cafe-la-esquina`/.test(md) && /conectar/.test(md) && /admin\.html/.test(md) &&
+     /GITHUB_TOKEN/.test(md));
+  const mdB = lista(flota, Object.assign({ comercio: 'Pan', linea: 'organico' }, validar(flota, { nombre: 'pan', comercio: 'Pan', linea: 'organico' })));
+  ok('  ...y a una Tienda Básica no le promete panel: la hoja es el panel', !/admin\.html/.test(mdB) && /La hoja es el panel/.test(mdB));
+  const flujoAlta = readFileSync(new URL('../.github/workflows/alta.yml', import.meta.url), 'utf8');
+  ok('  ...el flujo: todo automático en la tienda y el token enmascarado', /allow_auto_merge=true/.test(flujoAlta) &&
+     /default_workflow_permissions=write/.test(flujoAlta) && /::add-mask::\$TK/.test(flujoAlta) && /gh workflow run montaje\.yml/.test(flujoAlta));
 }
 
 console.log(T.join('\n'));
