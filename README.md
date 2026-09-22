@@ -73,10 +73,11 @@ la nueva.
 Solo se actualiza a versiones **publicadas con release** (etiquetas `vX.Y.Z`),
 nunca a lo que haya en `main`.
 
-> **Orgánico no tiene la etiqueta `v3.6.1`**, que es la versión de la que
+> **Orgánico no tenía la etiqueta `v3.6.1`**, que es la versión de la que
 > salió Cinnamon. Sin ella no se puede saber qué archivos cambió Cinnamon por
-> su cuenta, y la flota no toca los que difieran. Crear esa etiqueta en
-> Orgánico (sobre el commit de la 3.6.1) lo resuelve.
+> su cuenta, y la flota no toca los que difieran. Se creó el 22-sep sobre
+> `e5863d5` (el commit que subió a 3.6.1); hay que subirla con
+> `git push origin v3.6.1` desde `organico`.
 
 ### El secreto `FLOTA_TOKEN`
 
