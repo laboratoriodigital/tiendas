@@ -146,6 +146,17 @@ que el operador escribió allá (contacto, plan, precio, notas) no se toca.
 Para activarlo: en la hoja, menú **Panel › Clave para el alta**; Implementar ›
 Aplicación web (yo · cualquiera); y la URL `/exec` y la clave como secretos.
 
+**El portal** (0.18.0) se abre desde esa misma hoja: menú **Panel › Abrir el
+portal**. Es una pantalla con cada tienda —estado, producto, ventas del mes,
+pedidos, versión, último respaldo— y sus enlaces: ver la tienda, su panel, su
+repositorio, publicar y **volver atrás**. Arriba, las acciones de la flota.
+Abrirlo no consulta a ninguna tienda: pinta lo de la última actualización.
+
+Y cada tienda tiene su flujo **`restaurar`**: `el-sitio` vuelve a una
+publicación anterior y `la-version` a una versión anterior de la semilla. Los
+datos de su hoja se restauran desde el editor de su maestro (`A5_respaldos`,
+`A6_restaurarDatos`).
+
 `tienda-nueva.yml`, el alta de antes con sus campos viejos, ya no existe: lo
 reemplazan `alta` (tres campos) y `conectar` (tres campos).
 

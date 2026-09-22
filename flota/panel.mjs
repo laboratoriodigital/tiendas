@@ -33,7 +33,8 @@ export function panelHtml(filas, ahora, { dueno = 'laboratoriodigital', servicio
       <td class="n">${esc(f.maestro || '—')}<div class="s">${esc(f.publicado || '')}</div></td>
       <td class="n">${f.semilla ? '—' : esc(f.anillo)}</td>
       <td>${f.prUrl ? `<a href="${esc(f.prUrl)}" target="_blank" rel="noopener">#${esc(f.prNumero)}</a>` : '<span class="s">—</span>'}
-          <div class="s"><a href="${esc(gh(f.repo))}/actions" target="_blank" rel="noopener">Actions</a></div></td>
+          <div class="s"><a href="${esc(gh(f.repo))}/actions" target="_blank" rel="noopener">Actions</a>
+          · <a href="${esc(gh(f.repo))}/actions/workflows/restaurar.yml" target="_blank" rel="noopener">volver atrás</a></div></td>
     </tr>`;
   };
   const cifra = (r, v, n) => `<div class="cifra"><div class="r">${esc(r)}</div><div class="v">${esc(v)}</div>${n ? `<div class="s">${esc(n)}</div>` : ''}</div>`;

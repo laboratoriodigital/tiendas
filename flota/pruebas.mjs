@@ -278,6 +278,8 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   ok('  ...dice cuál está atrasada y cuál no contesta', /Detrás de su semilla/.test(h) && /1 tienda\(s\) detrás/.test(h) && /#7/.test(h));
   ok('  ...escapa lo que viene de fuera', /Cinnamon &lt;b&gt;/.test(h) && !/Cinnamon <b>/.test(h));
   ok('  ...no pide nada al abrirse: ni scripts, ni fuentes, ni hojas de estilo de fuera', !/<script|<link|@import|url\(/i.test(h));
+  ok('  ...y cada tienda lleva a su «volver atrás» (0.18.0)',
+     (h.match(/workflows\/restaurar\.yml/g) || []).length >= 2);
   ok('  ...y lleva a las acciones: nueva tienda, conectar, actualizar',
      /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
 }
