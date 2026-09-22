@@ -1,0 +1,70 @@
+# CONECTAR UNA TIENDA CON SU HOJA — el segundo paso del alta.
+#
+# TRES CAMPOS, los que da el menú de la hoja › Diagnóstico. Lo demás lo
+# averigua (flota/conectar.mjs): la hoja y el proyecto se los pregunta al
+# maestro; el repositorio, el comercio y la dirección los sabe flota.json, y
+# los escribe en la hoja sin pisar lo que el comercio ya puso. Después pone los
+# secretos de la tienda y dispara su primer montaje.
+#
+# El token se enmascara en el registro. Este repositorio es privado: la página
+# de la corrida la ve solo el dueño.
+name: conectar
+
+on:
+  workflow_dispatch:
+    inputs:
+      nombre:
+        description: 'El nombre corto de la tienda (el mismo del alta)'
+        required: true
+      maestro_url:
+        description: 'La URL del servicio (menú de la hoja › Diagnóstico)'
+        required: true
+      maestro_token:
+        description: 'El token tk-… (menú de la hoja › Diagnóstico)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  conectar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Tapar el token
+        env:
+          TK: ${{ inputs.maestro_token }}
+        run: echo "::add-mask::$TK"
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Preguntarle al maestro y escribir en la hoja
+        id: tienda
+        env:
+          NOMBRE: ${{ inputs.nombre }}
+          MAESTRO_URL: ${{ inputs.maestro_url }}
+          MAESTRO_TOKEN: ${{ inputs.maestro_token }}
+        run: node flota/conectar.mjs
+
+      - name: Los secretos de la tienda, y su primer montaje
+        env:
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          REPO: ${{ steps.tienda.outputs.repo }}
+          URL: ${{ inputs.maestro_url }}
+          TK: ${{ inputs.maestro_token }}
+          HOJA: ${{ steps.tienda.outputs.hoja_id }}
+          SCRIPT: ${{ steps.tienda.outputs.script_id }}
+        run: |
+          set -e
+          printf '%s' "$URL"    | gh secret set MAESTRO_URL   -R "$REPO"
+          printf '%s' "$TK"     | gh secret set MAESTRO_TOKEN -R "$REPO"
+          printf '%s' "$HOJA"   | gh secret set HOJA_ID       -R "$REPO"
+          printf '%s' "$SCRIPT" | gh secret set SCRIPT_ID     -R "$REPO"
+          gh workflow run montaje.yml -R "$REPO" -f que=todo
+          {
+            echo ""
+            echo "Secretos puestos (\`MAESTRO_URL\`, \`MAESTRO_TOKEN\`, \`HOJA_ID\`, \`SCRIPT_ID\`) y **primer montaje** disparado."
+            echo "Cuando termine en verde, conecta Cloudflare (paso 3 de la lista del alta)."
+          } >> "$GITHUB_STEP_SUMMARY"

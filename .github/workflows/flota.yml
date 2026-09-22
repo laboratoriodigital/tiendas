@@ -108,10 +108,11 @@ jobs:
           FLOTA_TOKEN: ${{ secrets.FLOTA_TOKEN }}
         run: |
           node flota/estado.mjs
-          if ! git diff --quiet -- ESTADO.md; then
+          git add -N panel/index.html 2>/dev/null || true
+          if ! git diff --quiet -- ESTADO.md panel/index.html; then
             git config user.name  "flota"
             git config user.email "noreply@github.com"
-            git add ESTADO.md
+            git add ESTADO.md panel/index.html
             git commit -m "docs/flota: estado de la flota"
             git push
           fi

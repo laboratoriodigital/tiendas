@@ -1,0 +1,12 @@
+{
+  // EL PANEL DE LA FLOTA — una página estática que escribe el flujo `flota`
+  // (acción estado) en panel/index.html. Sin Worker, sin datos secretos.
+  //
+  // Cloudflare: Workers & Pages › Create › Import a repository › tiendas.
+  // Y PROTÉGELO con Cloudflare Access (Zero Trust › Access › Applications ›
+  // Add › Self-hosted, con la dirección del panel y solo tu correo): la
+  // página no tiene secretos, pero sí la lista de tus clientes.
+  "name": "flota-panel",
+  "compatibility_date": "2026-09-05",
+  "assets": { "directory": "./panel" }
+}

@@ -180,16 +180,83 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   const fila = f2.tiendas[f2.tiendas.length - 1];
   ok('  ...la fila nueva entra en el anillo 2, con su sitio, y el resto no cambia', fila.anillo === 2 && fila.sitio === v.sitio &&
      f2.tiendas.length === flota.tiendas.length + 1 && flota.tiendas.length === JSON.parse(readFileSync(new URL('../flota.json', import.meta.url))).tiendas.length);
-  ok('  ...y otra con el mismo subdominio ya no pasa', validar(f2, { nombre: 'otra', comercio: 'x', linea: 'tienda', subdominio: 'cafe-la-esquina' }).errores.some(e => /subdominio/.test(e)));
+  ok('  ...y otra con la misma dirección ya no pasa', validar(Object.assign({}, f2, { tiendas: f2.tiendas.map(t => t.sitio === v.sitio ? Object.assign({}, t, { repo: 'x/otro' }) : t) }), { nombre: 'cafe-la-esquina', comercio: 'x', linea: 'tienda' }).errores.some(e => /dirección/.test(e)));
   const md = lista(flota, Object.assign({ comercio: 'Café La Esquina', linea: 'tienda' }, v));
   ok('  ...y la lista de lo que falta trae los datos de ESTA tienda: Google, Cloudflare, conectar, el panel',
-     /Café La Esquina/.test(md) && /Import a repository › `laboratoriodigital\/cafe-la-esquina`/.test(md) && /conectar/.test(md) && /admin\.html/.test(md) &&
+     /Café La Esquina/.test(md) && /Import a\s+repository › `laboratoriodigital\/cafe-la-esquina`/.test(md) && /conectar/.test(md) && /admin\.html/.test(md) &&
      /GITHUB_TOKEN/.test(md));
   const mdB = lista(flota, Object.assign({ comercio: 'Pan', linea: 'organico' }, validar(flota, { nombre: 'pan', comercio: 'Pan', linea: 'organico' })));
   ok('  ...y a una Tienda Básica no le promete panel: la hoja es el panel', !/admin\.html/.test(mdB) && /La hoja es el panel/.test(mdB));
+  ok('  ...y en la lista Cloudflare va DESPUÉS de conectar: conectado antes, publicaría lo que no es esta tienda',
+     md.indexOf('**2. Conectar**') > 0 && md.indexOf('**2. Conectar**') < md.indexOf('**3. Cloudflare**'));
+
+  // 0.15.0 · el formulario pide lo mínimo
+  const campos = t => [...t.matchAll(/^      ([a-z_]+):\n\s+description:/gm)].map(m => m[1]);
   const flujoAlta = readFileSync(new URL('../.github/workflows/alta.yml', import.meta.url), 'utf8');
-  ok('  ...el flujo: todo automático en la tienda y el token enmascarado', /allow_auto_merge=true/.test(flujoAlta) &&
-     /default_workflow_permissions=write/.test(flujoAlta) && /::add-mask::\$TK/.test(flujoAlta) && /gh workflow run montaje\.yml/.test(flujoAlta));
+  const flujoCon = readFileSync(new URL('../.github/workflows/conectar.yml', import.meta.url), 'utf8');
+  ok('EL ALTA PIDE TRES COSAS: el nombre, el comercio y el producto', campos(flujoAlta).join() === 'nombre,comercio,producto', campos(flujoAlta).join());
+  ok('  ...y conectar, las tres que da el Diagnóstico de la hoja', campos(flujoCon).join() === 'nombre,maestro_url,maestro_token', campos(flujoCon).join());
+  ok('  ...el alta CLONA la última etiqueta de la semilla (no necesita «Template repository») y comprueba antes el token',
+     /git clone --quiet --depth 1 --branch "\$ETIQUETA"/.test(flujoAlta) && !/\/generate/.test(flujoAlta) &&
+     /ALTA_TOKEN no ve la semilla/.test(flujoAlta) && flujoAlta.indexOf('ALTA_TOKEN no ve la semilla') < flujoAlta.indexOf('gh repo create'));
+  ok('  ...todo automático en la tienda', /allow_auto_merge=true/.test(flujoAlta) && /default_workflow_permissions=write/.test(flujoAlta));
+  ok('  ...conectar tapa el token sin meterlo en el guion, y dispara el primer montaje',
+     /TK: \$\{\{ inputs\.maestro_token \}\}\n\s+run: echo "::add-mask::\$TK"/.test(flujoCon) && !/run: echo "::add-mask::\$\{\{/.test(flujoCon) &&
+     /gh workflow run montaje\.yml/.test(flujoCon) && /HOJA_ID/.test(flujoCon) && /SCRIPT_ID/.test(flujoCon));
+
+  // preparar: la semilla limpia
+  const { preparar, NO_SE_HEREDA } = await import('./alta.mjs');
+  const d = carpeta({ 'plantilla/index.html': 'PLANTILLA', 'plantilla/admin.html': 'PANEL EN BLANCO', 'publicar/index.html': 'LA TIENDA DE LA SEMILLA',
+    'publicar/catalogo.json': '{}', 'publicar/fotos/pan.webp': 'x', 'publicar/productos/pan/index.html': 'x', 'publicar/compartir.jpg': 'x',
+    'publicar/_headers': 'h', '.github/workflows/release.yml': 'r', '.github/workflows/montaje.yml': 'm', 'tienda.json': '{"token":"tk-x"}',
+    'Claude outputs/nota.md': 'n', 'README.md': 'la semilla', 'maestro.gs': 'm',
+    'wrangler.jsonc': '{\n  "name": "tienda-laboratorio",\n  "assets": {"directory": "./publicar"},\n  "routes": [{ "pattern": "tienda.laboratorio-digital.com", "custom_domain": true }]\n}' });
+  preparar(d, { nombre: 'cafe-la-esquina', comercio: 'Café La Esquina', linea: 'tienda', producto: 'Tienda Panel', semilla: 'laboratoriodigital/tienda', etiqueta: 'v0.15.0' });
+  const hay = r => existsSync(join(d, r));
+  const lee = r => readFileSync(join(d, r), 'utf8');
+  ok('PREPARAR: no hereda el catálogo, las fotos, las fichas ni la imagen de la semilla', !hay('publicar/catalogo.json') && !hay('publicar/fotos') &&
+     !hay('publicar/productos') && !hay('publicar/compartir.jpg') && hay('publicar/_headers'));
+  ok('  ...ni lo que es solo de la semilla (release, notas, tienda.json con su token)', !hay('.github/workflows/release.yml') && !hay('Claude outputs') &&
+     !hay('tienda.json') && hay('.github/workflows/montaje.yml') && hay('maestro.gs'));
+  ok('  ...lo publicado de la Panel nace de la plantilla, en blanco', lee('publicar/index.html') === 'PLANTILLA' && lee('publicar/admin.html') === 'PANEL EN BLANCO');
+  ok('  ...con su propio nombre de sitio y SIN el dominio de la semilla', /"name": "cafe-la-esquina"/.test(lee('wrangler.jsonc')) &&
+     !/laboratorio-digital\.com|routes/.test(lee('wrangler.jsonc')), lee('wrangler.jsonc'));
+  ok('  ...y su README dice de dónde y en qué versión nació', /Café La Esquina/.test(lee('README.md')) && /v0\.15\.0/.test(lee('README.md')));
+}
+
+// ═══ Conectar ═══
+{
+  const { laFila, problemaDeIdentidad, sembrado, URL_VALIDA } = await import('./conectar.mjs');
+  const f3 = { tiendas: [{ nombre: 'Café La Esquina', repo: 'laboratoriodigital/cafe-la-esquina', linea: 'tienda', anillo: 2, sitio: 'https://cafe-la-esquina.laboratorio-digital.com' }] };
+  const fila = laFila(f3, 'Cafe-La-Esquina');
+  ok('CONECTAR: encuentra la tienda por su nombre corto', fila && fila.repo === 'laboratoriodigital/cafe-la-esquina');
+  ok('  ...y solo acepta la URL /exec del maestro', URL_VALIDA.test('https://script.google.com/macros/s/AKfy-cb_x1/exec') &&
+     !URL_VALIDA.test('https://script.google.com/macros/s/AKfy/dev') && !URL_VALIDA.test('https://evil.example/exec'));
+  const bien = { ok: true, hojaOk: true, hojaId: 'h1', scriptId: 's1', repositorio: '', _esperado: fila.repo };
+  ok('  ...con la identidad del maestro saca la hoja y el proyecto', problemaDeIdentidad(bien) === null);
+  ok('  ...pero no conecta un maestro que no abre su hoja, ni con un token que no es el suyo',
+     /no abre su hoja/.test(problemaDeIdentidad(Object.assign({}, bien, { hojaOk: false }))) &&
+     /dijo que no/.test(problemaDeIdentidad({ ok: false, error: 'Token que no corresponde' })));
+  ok('  ...ni la hoja de OTRA tienda', /otra tienda/.test(problemaDeIdentidad(Object.assign({}, bien, { repositorio: 'laboratoriodigital/organico' }))));
+  const sem = sembrado(fila);
+  ok('  ...y le escribe a la hoja el comercio, la dirección y el repositorio', sem.negocio === 'Café La Esquina' &&
+     sem.sitio_url === fila.sitio && sem.repositorio === fila.repo);
+}
+
+// ═══ El panel de la flota ═══
+{
+  const { panelHtml } = await import('./panel.mjs');
+  const h = panelHtml([
+    { nombre: 'Laboratorio Digital (semilla)', repo: 'laboratoriodigital/tienda', linea: 'Tienda Panel', semilla: true, versionRepo: '0.15.0', versionSemilla: '0.15.0', maestro: '2026-09-22-3' },
+    { nombre: 'Cinnamon <b>', repo: 'laboratoriodigital/tienda_cinnamonbeauty', linea: 'Tienda Básica', anillo: 1, versionRepo: '3.6.1', versionSemilla: '3.7.0', atrasada: true, maestro: 'no contesta', prNumero: 7, prUrl: 'https://github.com/x/y/pull/7' }
+  ], 'hoy', { dueno: 'laboratoriodigital', servicio: 'laboratoriodigital/tiendas' });
+  ok('EL PANEL DE LA FLOTA: una tabla por producto, con cada tienda', /<h2>Tienda Panel<\/h2>/.test(h) && /<h2>Tienda Básica<\/h2>/.test(h) &&
+     /laboratoriodigital\/tienda_cinnamonbeauty/.test(h));
+  ok('  ...dice cuál está atrasada y cuál no contesta', /Detrás de su semilla/.test(h) && /1 tienda\(s\) detrás/.test(h) && /#7/.test(h));
+  ok('  ...escapa lo que viene de fuera', /Cinnamon &lt;b&gt;/.test(h) && !/Cinnamon <b>/.test(h));
+  ok('  ...no pide nada al abrirse: ni scripts, ni fuentes, ni hojas de estilo de fuera', !/<script|<link|@import|url\(/i.test(h));
+  ok('  ...y lleva a las acciones: nueva tienda, conectar, actualizar',
+     /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
 }
 
 console.log(T.join('\n'));

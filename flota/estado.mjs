@@ -11,7 +11,9 @@
    eso vive en el panel de tiendas (panel.gs), que pregunta a cada maestro.
    ═══════════════════════════════════════════════════════════════════════════ */
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { tablaEstado, ultimaEtiqueta, atrasada } from './nucleo.mjs';
+import { panelHtml } from './panel.mjs';
 
 const TOKEN = process.env.FLOTA_TOKEN || '';
 const RESUMEN = process.env.GITHUB_STEP_SUMMARY || '';
@@ -49,7 +51,7 @@ async function publicado(sitio) {
 async function prAbierto(repo) {
   const prs = await api(`repos/${repo}/pulls?state=open&per_page=50`);
   const p = prs.find(x => String(x.head && x.head.ref || '').startsWith('semilla/'));
-  return p ? `[#${p.number}](${p.html_url})` : '';
+  return p ? { numero: p.number, url: p.html_url } : null;
 }
 
 async function main() {
@@ -64,12 +66,18 @@ async function main() {
                 versionSemilla: semillas[t.linea] };
     try { f.versionRepo = await versionDelRepo(t.repo); } catch (e) { f.versionRepo = '¿? ' + e.message; }
     Object.assign(f, t.sitio ? await publicado(t.sitio) : {});
-    try { f.pr = t.semilla ? '' : await prAbierto(t.repo); } catch (e) { f.pr = ''; }
+    f.repo = t.repo; f.semilla = !!t.semilla;
+    try { const pr = t.semilla ? null : await prAbierto(t.repo); if (pr) { f.pr = `[#${pr.numero}](${pr.url})`; f.prNumero = pr.numero; f.prUrl = pr.url; } } catch (e) { }
     f.atrasada = !t.semilla && atrasada(f.versionRepo, f.versionSemilla);
     filas.push(f);
   }
-  const md = tablaEstado(filas, new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC');
+  const ahora = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+  const md = tablaEstado(filas, ahora);
   writeFileSync('ESTADO.md', md);
+  /* 0.15.0 · y la misma foto como página: panel/index.html (flota/panel.mjs). */
+  mkdirSync('panel', { recursive: true });
+  const dueno = String((Object.values(flota.lineas || {})[0] || {}).semilla || 'laboratoriodigital').split('/')[0];
+  writeFileSync('panel/index.html', panelHtml(filas, ahora, { dueno, servicio: process.env.GITHUB_REPOSITORY || dueno + '/tiendas' }));
   if (RESUMEN) appendFileSync(RESUMEN, md + '\n');
   console.log(md);
 }

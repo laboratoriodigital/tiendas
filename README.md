@@ -24,29 +24,49 @@ semilla `tienda`).
 
 | | Qué | Dónde |
 |---|---|---|
-| Alta | Crear una tienda nueva, de cualquiera de los dos productos | Actions › **alta** |
+| Alta | Crear una tienda nueva, de cualquiera de los dos productos | Actions › **alta**, luego **conectar** |
+| Panel | La flota de un vistazo | [`panel/index.html`](panel/index.html), detrás de Cloudflare Access |
 | Estado | Qué versión tiene cada tienda y qué contesta publicada | Actions › **flota** › `estado` · [`ESTADO.md`](ESTADO.md) |
 | Actualizar | Poner al día una línea, por anillos | Actions › **flota** › `actualizar` |
 | Números | Ventas, pedidos y agotados de todas las tiendas | La hoja **Panel de tiendas** (`panel.gs`), aparte |
 
 ---
 
-## El alta: `alta.yml`
+## El alta: `alta` y `conectar`, tres campos cada uno
 
-**`crear`** — nombre corto (`cafe-la-esquina`), el comercio, el producto y, si
-quieres, el subdominio (de fábrica, el nombre: `cafe-la-esquina.laboratorio-digital.com`).
-Crea el repositorio desde la semilla, le pone su nombre de sitio, deja a
-Actions escribir y fusionar solo, le copia `SEMILLA_TOKEN` y agrega su fila a
-`flota.json` (anillo 2). **El resumen de la corrida es la lista de lo que
-falta**, con los datos de esa tienda: la cuenta de Google, la hoja y el
-maestro; y conectar el repositorio en Cloudflare (un clic).
+**1. `alta`** — el nombre corto (`cafe-la-esquina`: repositorio, sitio y
+subdominio), el comercio y el producto. Comprueba que `ALTA_TOKEN` ve la
+semilla (y si no, dice qué revisar), **clona su última versión publicada**
+—no hace falta marcarla como plantilla—, la limpia de lo que es de otra tienda
+(catálogo, fotos, fichas, imagen, dominio, `release`), le pone su nombre,
+permisos, fusiones automáticas y `SEMILLA_TOKEN`, y la agrega a `flota.json`.
+**El resumen de la corrida es la lista de lo que falta**, en orden.
 
-**`conectar`** — con la URL del servicio y el token que da el menú de la hoja
-› Diagnóstico: pone los secretos y dispara el primer montaje.
+**2. Google** (a mano, en la cuenta de la tienda): la hoja, el maestro,
+`A0_instalar`, la implementación y el stub. El Diagnóstico de la hoja da la URL
+y el token.
 
-Lo que no se hace desde aquí, y por qué: Google (cada tienda vive en su propia
-cuenta, a propósito) y el diálogo de Cloudflare. Todavía **no ha corrido de
-punta a punta**: la primera vez, míralo paso a paso.
+**3. `conectar`** — el nombre, la URL y el token. Le pregunta al maestro por
+su hoja y su proyecto, le escribe a la hoja el comercio, la dirección y el
+repositorio (sin pisar lo que ya esté), pone los cuatro secretos y dispara el
+primer montaje.
+
+**4. Cloudflare**, cuando ese montaje termine: Import a repository. Al final a
+propósito: conectado antes, publicaría lo que todavía no es esta tienda.
+
+Todavía no ha corrido de punta a punta: la primera vez, míralo paso a paso.
+
+---
+
+## El panel: `panel/index.html`
+
+Una página que escribe `flota › estado` (los lunes y cada vez que se corre),
+con la misma información que `ESTADO.md` y los botones de **Nueva tienda**,
+**Conectar** y **Actualizar**. Estática, sin JavaScript y sin nada secreto.
+Para verla en la web: Cloudflare › Import a repository › `tiendas`
+(`wrangler.jsonc` ya dice qué publicar) y **protégela con Cloudflare Access**
+(Zero Trust › Access › Applications › Self-hosted, solo tu correo): no tiene
+secretos, pero sí la lista de tus clientes.
 
 ---
 
@@ -90,7 +110,7 @@ Solo se actualiza a versiones **publicadas con release** (etiquetas `vX.Y.Z`).
 
 | Secreto | Para qué | Permisos (de grano fino, con vencimiento) |
 |---|---|---|
-| `ALTA_TOKEN` | crear repositorios y ponerles secretos | todos los repositorios: *Administration*, *Secrets*, *Contents*, *Workflows* en escritura |
+| `ALTA_TOKEN` | crear repositorios, llenarlos, ponerles secretos y disparar su montaje | **del mismo dueño de las tiendas**, sobre todos sus repositorios: *Administration*, *Secrets*, *Contents*, *Workflows*, *Actions* en escritura |
 | `FLOTA_TOKEN` | leer semillas, empujar ramas, abrir y fusionar pull requests, disparar y esperar montajes | los de la flota: *Contents*, *Pull requests*, *Workflows*, *Actions* en escritura |
 | `SEMILLA_TOKEN` | el alta lo copia a cada tienda Panel para que se actualice sola con sus flujos | la semilla en lectura; las tiendas con *Contents* y *Workflows* en escritura |
 
