@@ -1,0 +1,29 @@
+{
+  "_leeme": "La lista de la flota. La edita una persona. Ver README.md, «La flota». Nada secreto va aquí: ni tokens, ni URLs de maestros.",
+  "lineas": {
+    "tienda": {
+      "semilla": "laboratoriodigital/tienda",
+      "propios": [
+        "maestro.gs", "plantilla/", "montar/", "pruebas/", "docs/", "servicio/",
+        ".github/workflows/montaje.yml", ".github/workflows/fotos.yml", ".github/workflows/pruebas.yml",
+        "package.json", "CONTRIBUIR.md"
+      ]
+    },
+    "organico": {
+      "semilla": "laboratoriodigital/organico",
+      "propios": [
+        "maestro.gs", "montar/", "pruebas/", "docs/", "servicio/", "preparar-fotos.mjs",
+        ".github/workflows/montaje.yml", ".github/workflows/fotos.yml", ".github/workflows/pruebas.yml",
+        "package.json", "CONTRIBUIR.md", "publicar/index.html", "publicar/_headers"
+      ]
+    }
+  },
+  "tiendas": [
+    { "nombre": "Laboratorio Digital", "repo": "laboratoriodigital/tienda", "linea": "tienda", "semilla": true,
+      "sitio": "https://tienda.laboratorio-digital.com" },
+    { "nombre": "Orgánico", "repo": "laboratoriodigital/organico", "linea": "organico", "semilla": true,
+      "sitio": "https://organico.laboratoriodigital-la.workers.dev" },
+    { "nombre": "Cinnamon Beauty", "repo": "laboratoriodigital/tienda_cinnamonbeauty", "linea": "organico", "anillo": 1,
+      "sitio": "https://cinnamonbeauty.laboratoriodigital-la.workers.dev" }
+  ]
+}

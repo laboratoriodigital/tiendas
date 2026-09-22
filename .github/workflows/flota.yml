@@ -1,0 +1,120 @@
+# LA FLOTA (S3 · versión 1)
+#
+# Dos acciones, a mano desde Actions › flota › Run workflow:
+#
+#   estado      Una fila por tienda: versión del repositorio, última de su
+#               semilla, qué contesta la tienda publicada y si tiene una
+#               actualización esperando. Escribe ESTADO.md en este repositorio.
+#               También corre sola los lunes, para que la tabla no envejezca.
+#
+#   actualizar  Para las tiendas de UNA línea hasta el anillo pedido, abre un
+#               pull request en cada una con la versión nueva de su semilla.
+#               De fábrica en ENSAYO: dice qué haría y no empuja nada.
+#
+# Lo que NO hace: fusionar, publicar el maestro, rehornear. Eso sigue siendo
+# de cada tienda —sus pruebas en el pull request, y su `montaje`, que es el
+# único que tiene sus secretos y ya verifica contra la tienda viva—.
+#
+# ═══ EL SECRETO: FLOTA_TOKEN ═══
+# De grano fino, del dueño de las tiendas, con vencimiento. Solo en ESTE
+# repositorio. Permisos, sobre los repositorios de la flota (semillas y tiendas):
+#   Contents        Read and write   ← leer la semilla, empujar la rama
+#   Pull requests   Read and write   ← abrir el pull request
+#   Workflows       Read and write   ← la semilla trae .github/workflows/*.yml
+#   Metadata        Read             (obligatorio)
+name: flota
+
+on:
+  schedule:
+    - cron: '23 12 * * 1'        # lunes 7:23 en Colombia: solo el estado
+  workflow_dispatch:
+    inputs:
+      accion:
+        description: 'Qué hacer'
+        type: choice
+        default: estado
+        options: [estado, actualizar]
+      linea:
+        description: 'Línea a actualizar (semilla)'
+        type: choice
+        default: organico
+        options: [organico, tienda]
+      anillo:
+        description: 'Hasta qué anillo (0 = pruebas, 1 = primeras tiendas, 2 = todas)'
+        type: choice
+        default: '1'
+        options: ['0', '1', '2']
+      version:
+        description: 'Versión de la semilla (vacío = la última publicada con release)'
+        required: false
+        default: ''
+      ensayo:
+        description: 'Ensayo: solo decir qué haría, sin abrir nada'
+        type: boolean
+        default: true
+      sin_base:
+        description: 'Si no se sabe de qué versión salió una tienda, los archivos distintos…'
+        type: choice
+        default: dejar
+        options: [dejar, sobrescribir]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flota
+  cancel-in-progress: false
+
+jobs:
+  flota:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # Antes de tocar nada: una regla de actualizar rota no llega a abrir un
+      # pull request en ninguna tienda.
+      - name: Las pruebas de la flota (sin red)
+        run: node flota/pruebas.mjs
+
+      - name: ¿Hay con qué?
+        env:
+          FLOTA_TOKEN: ${{ secrets.FLOTA_TOKEN }}
+        run: |
+          if [ -z "$FLOTA_TOKEN" ]; then
+            {
+              echo "### Falta el secreto \`FLOTA_TOKEN\`"
+              echo ""
+              echo "Ver el encabezado de .github/workflows/flota.yml y el README."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Estado
+        if: github.event_name == 'schedule' || inputs.accion == 'estado'
+        env:
+          FLOTA_TOKEN: ${{ secrets.FLOTA_TOKEN }}
+        run: |
+          node flota/estado.mjs
+          if ! git diff --quiet -- ESTADO.md; then
+            git config user.name  "flota"
+            git config user.email "noreply@github.com"
+            git add ESTADO.md
+            git commit -m "docs/flota: estado de la flota"
+            git push
+          fi
+
+      - name: Actualizar
+        if: github.event_name == 'workflow_dispatch' && inputs.accion == 'actualizar'
+        env:
+          FLOTA_TOKEN: ${{ secrets.FLOTA_TOKEN }}
+          LINEA: ${{ inputs.linea }}
+          ANILLO: ${{ inputs.anillo }}
+          VERSION: ${{ inputs.version }}
+          ENSAYO: ${{ inputs.ensayo }}
+          SIN_BASE: ${{ inputs.sin_base }}
+        run: node flota/actualizar.mjs
