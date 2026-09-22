@@ -56,7 +56,7 @@ export function validar(flota, { nombre, comercio, linea }) {
 export const NO_SE_HEREDA = [
   '.github/workflows/release.yml', 'Claude outputs', 'tienda.json', 'ESTADO.md',
   'publicar/catalogo.json', 'publicar/fotos', 'publicar/productos', 'publicar/sitemap.xml',
-  'publicar/compartir.jpg'
+  'publicar/compartir.jpg', 'servicio'
 ];
 /* En la Tienda Panel, lo publicado se rehace desde plantilla/: nace en blanco
    (sin SCRIPT_URL: «esta tienda todavía no está conectada») hasta el primer
@@ -116,7 +116,8 @@ export function lista(flota, { repo, comercio, linea, sitio, nombre, etiqueta })
     `   1. Una hoja nueva llamada «${comercio}».`,
     `   2. Un proyecto en script.google.com: pega \`maestro.gs\` de \`${repo}\`, pon el ID de la hoja`,
     '      (lo que va entre `/d/` y `/edit`) en `HOJA_ID`, ejecuta **A0_instalar** y autoriza.',
-    '   3. Implementar › Nueva implementación › Aplicación web (Ejecutar como: yo · Acceso: cualquiera).',
+    '   3. DESPUÉS de A0_instalar: Implementar › Nueva implementación › Aplicación web (Ejecutar como: yo ·',
+    '      Acceso: cualquiera). Si pegas HOJA_ID después, publica una «Nueva versión» (bitácora 74).',
     '   4. `A1_generarStub` en el maestro, y pega lo que imprime en Extensiones › Apps Script de la hoja.',
     '   5. En el editor del maestro, ejecuta **diagnosticoCompleto** (el menú de la hoja no enseña el token):',
     '      copia *Servicio* y *Token*. Ahí mismo dice el enlace de *Conectar*.',

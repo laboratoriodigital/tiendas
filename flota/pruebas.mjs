@@ -248,6 +248,20 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   const flujoC = readFileSync(new URL('../.github/workflows/conectar.yml', import.meta.url), 'utf8');
   ok('  ...con DISPARO_TOKEN, que solo pide Actions, y por POST', /DISPARO_TOKEN: \$\{\{ secrets\.DISPARO_TOKEN \}\}/.test(flujoC) &&
      /method: 'POST'/.test(readFileSync(new URL('./conectar.mjs', import.meta.url), 'utf8')));
+  ok('  ...«falta HOJA_ID» con diagnóstico bueno: dice que es la versión implementada, y cómo salir',
+     /Nueva versión/.test(problemaDeIdentidad(Object.assign({}, bien, { hojaOk: false, problema: 'Falta HOJA_ID: pega el ID' }))) &&
+     /A0_instalar/.test(problemaDeIdentidad(Object.assign({}, bien, { hojaOk: false, problema: 'Falta HOJA_ID' }))) &&
+     !/Nueva versión/.test(problemaDeIdentidad(Object.assign({}, bien, { hojaOk: false, problema: 'No tienes permiso' }))));
+  const { registroParaElPanel, textoDelPanel } = await import('./conectar.mjs');
+  const rp = registroParaElPanel({ lineas: { tienda: { producto: 'Tienda Panel' } } }, Object.assign({}, fila, { linea: 'tienda' }),
+                                 'https://script.google.com/macros/s/AKfy/exec', 'tk-1', 'alta-x');
+  ok('  ...y avisa a la hoja de administración con lo que ella necesita (y su clave)',
+     rp.a === 'registrar_tienda' && rp.clave === 'alta-x' && rp.repo === fila.repo && rp.comercio === fila.nombre &&
+     rp.producto === 'Tienda Panel' && rp.token === 'tk-1' && rp.servicio.endsWith('/exec'));
+  ok('  ...diciendo qué pasó, y sin secretos no lo intenta',
+     /PANEL_URL/.test(textoDelPanel(null, false)) && /registrada/.test(textoDelPanel({ ok: true, nueva: true, fila: 5 }, true)) &&
+     /servicio y su token/.test(textoDelPanel({ ok: true, nueva: false, fila: 5 }, true)) && /a mano/.test(textoDelPanel({ ok: false, error: 'Clave' }, true)) &&
+     /PANEL_CLAVE: \$\{\{ secrets\.PANEL_CLAVE \}\}/.test(flujoC) && /PANEL_URL: \$\{\{ secrets\.PANEL_URL \}\}/.test(flujoC));
   ok('  ...y le escribe a la hoja el comercio, la dirección y el repositorio', sem.negocio === 'Café La Esquina' &&
      sem.sitio_url === fila.sitio && sem.repositorio === fila.repo);
 }

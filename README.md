@@ -122,6 +122,7 @@ Solo se actualiza a versiones **publicadas con release** (etiquetas `vX.Y.Z`).
 | `ALTA_TOKEN` | crear repositorios, llenarlos, ponerles secretos y disparar su montaje | **del mismo dueño de las tiendas**, sobre todos sus repositorios: *Administration*, *Secrets*, *Contents*, *Workflows*, *Actions* en escritura |
 | `FLOTA_TOKEN` | leer semillas, empujar ramas, abrir y fusionar pull requests, disparar y esperar montajes | los de la flota: *Contents*, *Pull requests*, *Workflows*, *Actions* en escritura |
 | `DISPARO_TOKEN` | `conectar` se lo pone al maestro de cada tienda como `GITHUB_TOKEN`: Publicar y Actualizar desde el panel | todos los repositorios de las tiendas: **solo** *Actions* en escritura |
+| `PANEL_URL` · `PANEL_CLAVE` | opcionales: `conectar` registra la tienda en la hoja de administración | ninguno de GitHub: la URL `/exec` de esa hoja y la clave de su menú |
 | `SEMILLA_TOKEN` | el alta lo copia a cada tienda Panel para que se actualice sola con sus flujos | la semilla en lectura; las tiendas con *Contents* y *Workflows* en escritura |
 
 > **Orgánico no tenía la etiqueta `v3.6.1`**, la versión de la que salió
@@ -134,9 +135,19 @@ Solo se actualiza a versiones **publicadas con release** (etiquetas `vX.Y.Z`).
 
 ---
 
-## `tienda-nueva.yml` (el de antes)
+## La hoja de administración de tiendas (0.17.0)
 
-Lo reemplaza `alta.yml`. Se queda mientras `alta` no haya corrido una vez.
+La hoja «Panel de tiendas» (`panel.gs` de la semilla) es el registro del
+negocio: estado, plan, precio, contacto y notas de cada tienda, con sus cifras.
+`conectar` le deja la fila sola —comercio, repositorio, sitio, producto,
+servicio y token— si este repositorio tiene `PANEL_URL` y `PANEL_CLAVE`. Lo
+que el operador escribió allá (contacto, plan, precio, notas) no se toca.
+
+Para activarlo: en la hoja, menú **Panel › Clave para el alta**; Implementar ›
+Aplicación web (yo · cualquiera); y la URL `/exec` y la clave como secretos.
+
+`tienda-nueva.yml`, el alta de antes con sus campos viejos, ya no existe: lo
+reemplazan `alta` (tres campos) y `conectar` (tres campos).
 
 ---
 

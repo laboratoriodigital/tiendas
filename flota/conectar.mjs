@@ -15,6 +15,10 @@
    sus propiedades) con DISPARO_TOKEN, si existe en tiendas: Publicar y
    Actualizar quedan andando sin tocar el editor. No pisa uno ya puesto.
 
+   0.17.0 · Si «falta HOJA_ID» pero el diagnóstico sí la ve, lo dice claro:
+   es la versión implementada (bitácora 74). Y avisa a la hoja de
+   administración de tiendas (PANEL_URL + PANEL_CLAVE), si existe.
+
    Deja en GITHUB_OUTPUT repo, hoja_id y script_id para que el flujo ponga los
    secretos y dispare el primer montaje. No imprime el token nunca.
 
@@ -34,7 +38,18 @@ export function laFila(flota, nombre) {
 export function problemaDeIdentidad(r) {
   if (!r || typeof r !== 'object') return 'El maestro no contestó algo que se entienda. ¿Es la URL /exec de la implementación?';
   if (!r.ok) return 'El maestro dijo que no: ' + (r.error || 'sin motivo') + '. ¿El token es el de ESTA hoja?';
-  if (!r.hojaOk) return 'El maestro no abre su hoja: ' + (r.problema || 'falta HOJA_ID') + '. Revisa HOJA_ID en el maestro.';
+  if (!r.hojaOk) {
+    /* 0.17.0 · El caso de la bitácora 74: el editor y el diagnóstico SÍ ven
+       HOJA_ID, pero la web app corre la versión IMPLEMENTADA, que es de antes
+       de pegarlo. No es la hoja: es la implementación. */
+    if (/HOJA_ID/i.test(String(r.problema || '')) || !r.problema) {
+      return 'El maestro no abre su hoja: ' + (r.problema || 'falta HOJA_ID') + '.\n\n' +
+        'Si el diagnóstico SÍ la ve, la aplicación web corre una versión de ANTES de pegar HOJA_ID. ' +
+        'En el editor del maestro: **Implementar › Gestionar implementaciones › lápiz › Versión: Nueva versión › Implementar**, ' +
+        'y vuelve a correr conectar (la URL no cambia). Con el maestro 0.17.0 basta ejecutar **A0_instalar** una vez.';
+    }
+    return 'El maestro no abre su hoja: ' + r.problema + '. Revisa HOJA_ID en el maestro.';
+  }
   if (!r.hojaId || !r.scriptId) return 'El maestro no dijo su hoja o su proyecto: publícale una versión nueva.';
   if (r.repositorio && r.repositorio.toLowerCase() !== (r._esperado || '').toLowerCase()) {
     return 'Esta hoja dice que es de ' + r.repositorio + ', no de ' + r._esperado + '. ¿Es la hoja de otra tienda?';
@@ -64,6 +79,28 @@ export function textoDelPermiso(r, hayToken) {
   if (r && r.ok && r.yaEstaba) return 'Permiso de GitHub: ya tenía uno; no se tocó.';
   if (r && /desconocida/i.test(String(r.error || ''))) return 'Permiso de GitHub: este maestro no sabe recibirlo (Tienda Básica o versión anterior a la 0.16.0). Ponlo a mano en las Propiedades del script como `GITHUB_TOKEN`.';
   return 'Permiso de GitHub: no se pudo poner (' + ((r && r.error) || 'sin respuesta') + ').';
+}
+
+/* 0.17.0 · LA HOJA DE ADMINISTRACIÓN SE ENTERA SOLA. Si tiendas tiene
+   PANEL_URL (la web app del «Panel de tiendas») y PANEL_CLAVE (su menú › Clave
+   para el alta), conectar le deja la fila: comercio, repositorio, sitio,
+   producto, servicio y token. Lo que el operador escribió allá no se toca. */
+export function registroParaElPanel(flota, fila, url, token, clave) {
+  const l = (flota.lineas || {})[fila.linea] || {};
+  return { a: 'registrar_tienda', clave, comercio: fila.nombre, repo: fila.repo, sitio: fila.sitio || '',
+           producto: l.producto || fila.linea || '', servicio: url, token };
+}
+
+export function textoDelPanel(r, hay) {
+  if (!hay) return 'Hoja de administración: no se avisó (faltan los secretos `PANEL_URL` y `PANEL_CLAVE` en tiendas).';
+  if (r && r.ok) return 'Hoja de administración: ' + (r.nueva ? 'la tienda quedó registrada' : 'se actualizaron su servicio y su token') + ' (fila ' + r.fila + ').';
+  return 'Hoja de administración: no se pudo registrar (' + ((r && r.error) || 'sin respuesta') + '). Pégala a mano en la pestaña Tiendas.';
+}
+
+async function avisarAlPanel(panelUrl, cuerpo) {
+  const r = await fetch(panelUrl, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                                    body: JSON.stringify(cuerpo) });
+  try { return JSON.parse(await r.text()); } catch { return { ok: false, error: 'respuesta que no es JSON (' + r.status + ')' }; }
 }
 
 async function pedir(url, token, a, extra) {
@@ -96,6 +133,11 @@ async function main() {
   const disparo = String(process.env.DISPARO_TOKEN || '').trim();
   const pr = disparo ? await ponerPermiso(url, token, disparo) : null;
   decir('- ' + textoDelPermiso(pr, !!disparo));
+  const panelUrl = String(process.env.PANEL_URL || '').trim(), panelClave = String(process.env.PANEL_CLAVE || '').trim();
+  const hayPanel = !!(panelUrl && panelClave);
+  let rp = null;
+  if (hayPanel) { try { rp = await avisarAlPanel(panelUrl, registroParaElPanel(flota, fila, url, token, panelClave)); } catch (e) { rp = { ok: false, error: e.message }; } }
+  decir('- ' + textoDelPanel(rp, hayPanel));
   salida('repo', fila.repo); salida('hoja_id', id.hojaId); salida('script_id', id.scriptId);
 }
 
