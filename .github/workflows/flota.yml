@@ -25,6 +25,13 @@
 #   Workflows       Read and write   ← la semilla trae .github/workflows/*.yml
 #   Actions         Read and write   ← disparar y esperar el montaje de cada tienda
 #   Metadata        Read             (obligatorio)
+#
+# ═══ OPCIONALES: CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID ═══
+# Con los dos, `estado` publica también `panel/` como Worker de recursos
+# estáticos (wrangler.jsonc). El token se crea en Cloudflare › My Profile ›
+# API Tokens › Create Token › **Edit Cloudflare Workers**, acotado a esta
+# cuenta; el identificador de la cuenta está en el panel de Cloudflare, en
+# Workers & Pages › Overview. Sin ellos el flujo no falla: lo dice y sigue.
 name: flota
 
 on:
@@ -116,6 +123,34 @@ jobs:
             git commit -m "docs/flota: estado de la flota"
             git push
           fi
+
+      # 0.20.0 · PUBLICAR EL PANEL. Cloudflare puede desplegar solo al empujar,
+      # si alguien conectó el repositorio en su panel; esto es el otro camino,
+      # el que no depende de que nadie lo haya conectado: con un token de
+      # Cloudflare en los secretos, el propio flujo publica `panel/`. Sin el
+      # token no falla —lo dice y sigue—, porque un panel sin publicar no es
+      # una avería: es una tienda menos que mirar desde el navegador.
+      - name: Publicar el panel en Cloudflare
+        if: github.event_name == 'schedule' || inputs.accion == 'estado'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            {
+              echo ""
+              echo "_El panel no se publicó: faltan \`CLOUDFLARE_API_TOKEN\` y/o"
+              echo "\`CLOUDFLARE_ACCOUNT_ID\` en los secretos de este repositorio (README)._"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npx --yes wrangler@4 deploy 2>&1 | tail -20 | tee /tmp/cf.txt
+          {
+            echo ""
+            echo "**Panel publicado.** $(grep -o 'https://[^ ]*' /tmp/cf.txt | tail -1)"
+            echo ""
+            echo "_Protégelo con Cloudflare Access: Zero Trust › Access › Applications › Self-hosted (docs/DESPLIEGUE.md)._"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Actualizar
         if: github.event_name == 'workflow_dispatch' && inputs.accion == 'actualizar'

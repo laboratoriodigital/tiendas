@@ -278,6 +278,18 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   ok('  ...dice cuál está atrasada y cuál no contesta', /Detrás de su semilla/.test(h) && /1 tienda\(s\) detrás/.test(h) && /#7/.test(h));
   ok('  ...escapa lo que viene de fuera', /Cinnamon &lt;b&gt;/.test(h) && !/Cinnamon <b>/.test(h));
   ok('  ...no pide nada al abrirse: ni scripts, ni fuentes, ni hojas de estilo de fuera', !/<script|<link|@import|url\(/i.test(h));
+  {
+    const flujoF = readFileSync(new URL('../.github/workflows/flota.yml', import.meta.url), 'utf8');
+    ok('EL PANEL SE PUBLICA SOLO si hay token de Cloudflare, y si no, lo dice y sigue',
+       /wrangler@4 deploy/.test(flujoF) && /CLOUDFLARE_API_TOKEN/.test(flujoF) &&
+       /CLOUDFLARE_ACCOUNT_ID/.test(flujoF) && /exit 0/.test(flujoF) &&
+       /Access/.test(flujoF));
+    const w = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8')
+      .split('\n').filter(l => !/^\s*\/\//.test(l)).join('\n'));
+    ok('  ...lo que publica es la carpeta del panel, y nada más',
+       w.assets && w.assets.directory === './panel' && !w.main,
+       JSON.stringify(w.assets));
+  }
   ok('  ...y cada tienda lleva a su «volver atrás» (0.18.0)',
      (h.match(/workflows\/restaurar\.yml/g) || []).length >= 2);
   ok('  ...y lleva a las acciones: nueva tienda, conectar, actualizar',
