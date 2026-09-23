@@ -36,6 +36,26 @@ export function elegirTiendas(flota, linea, anillo) {
     t.linea === linea && !t.semilla && Number(t.anillo) <= hasta);
 }
 
+/* 0.20.1 · «SOLO ESTA TIENDA», COMO SE ESCRIBA (bitácora 87). El campo pedía
+   `dueño/repositorio` y quien lo llena escribe `prueba1`, que es como se llama
+   la tienda en todas las demás pantallas. Con el nombre pelado no encajaba
+   ninguna y el flujo contestaba «Ninguna tienda de esta línea en esos
+   anillos» — una frase que manda a revisar los anillos, que estaban bien.
+   Ahora se acepta el nombre corto, se ignoran mayúsculas y espacios, y cuando
+   lo pedido no existe se dice ESO, con la lista de lo que sí hay. */
+export function laPedida(tiendas, pedido) {
+  const t = String(pedido || '').trim().toLowerCase().replace(/^https?:\/\/github\.com\//, '')
+    .replace(/\.git$/, '').replace(/^\/+|\/+$/g, '');
+  if (!t) return { tiendas };
+  const encaja = tiendas.filter(x => {
+    const r = String(x.repo || '').toLowerCase();
+    return r === t || r.split('/')[1] === t || String(x.nombre || '').toLowerCase() === t;
+  });
+  if (encaja.length) return { tiendas: encaja };
+  return { tiendas: [], error: 'No hay ninguna tienda «' + pedido + '» en esta línea y hasta ese anillo. ' +
+             'Las que sí: ' + (tiendas.map(x => '`' + x.repo + '` (anillo ' + x.anillo + ')').join(', ') || 'ninguna') + '.' };
+}
+
 /* ¿Este archivo es de la semilla? `propios` lista rutas; las que acaban en «/»
    son carpetas enteras. */
 export function esPropio(ruta, propios) {

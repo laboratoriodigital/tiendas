@@ -72,6 +72,32 @@ async function ponerPermiso(url, token, tk) {
   try { return JSON.parse(await r.text()); } catch { return { ok: false, error: 'respuesta que no es JSON (' + r.status + ')' }; }
 }
 
+/* 0.20.1 · ¿ESE TOKEN VE ESTA TIENDA? (bitácora 87). GitHub contesta 404 —no
+   403— cuando un token de grano fino no alcanza un repositorio, así que el
+   maestro no puede distinguir «no existe» de «no lo incluye»: se le pregunta
+   aquí, ANTES de sembrárselo, con el mismo token que va a recibir. Un
+   `DISPARO_TOKEN` hecho sobre «Only select repositories» no incluye a las
+   tiendas que nacieron después, y el síntoma aparece semanas más tarde, el día
+   que el comercio toca Publicar. */
+async function veElRepositorio(repo, tk) {
+  try {
+    const r = await fetch('https://api.github.com/repos/' + repo, {
+      headers: { Authorization: 'Bearer ' + tk, Accept: 'application/vnd.github+json',
+                 'User-Agent': 'flota' } });
+    return { ok: r.status === 200, codigo: r.status };
+  } catch (e) { return { ok: false, codigo: 0, error: e.message }; }
+}
+
+export function textoDelAlcance(r, repo) {
+  if (!r || r.ok) return '';
+  if (r.codigo === 401) return 'Ojo: `DISPARO_TOKEN` está vencido o mal copiado (GitHub contestó 401).';
+  return 'Ojo: `DISPARO_TOKEN` NO alcanza a ver `' + repo + '` (GitHub contestó ' + (r.codigo || 'nada') +
+         '). Un token de grano fino sobre «Only select repositories» no incluye las tiendas creadas ' +
+         'después: hazlo sobre TODOS los repositorios del dueño, con solo *Actions: Read and write*, ' +
+         'y vuelve a correr `conectar`. Hasta entonces, Publicar y Actualizar desde el panel no van a ' +
+         'disparar nada.';
+}
+
 /* Qué decir del permiso, según lo que contestó el maestro. */
 export function textoDelPermiso(r, hayToken) {
   if (!hayToken) return 'Permiso de GitHub: no se puso (falta el secreto `DISPARO_TOKEN` en tiendas). Publicar y Actualizar desde el panel esperan a que alguien lo ponga a mano.';
@@ -88,7 +114,12 @@ export function textoDelPermiso(r, hayToken) {
 export function registroParaElPanel(flota, fila, url, token, clave) {
   const l = (flota.lineas || {})[fila.linea] || {};
   return { a: 'registrar_tienda', clave, comercio: fila.nombre, repo: fila.repo, sitio: fila.sitio || '',
-           producto: l.producto || fila.linea || '', servicio: url, token };
+           producto: l.producto || fila.linea || '', servicio: url, token,
+           /* 0.20.1 · EL ANILLO, TAMBIÉN (bitácora 88). Vivía solo en
+              `flota.json`, que es un archivo de un repositorio privado: quien
+              mira el portal no tiene por qué abrir GitHub para saber si una
+              tienda recibe las versiones primero o de últimas. */
+           anillo: fila.anillo === undefined || fila.anillo === null ? '' : String(fila.anillo) };
 }
 
 export function textoDelPanel(r, hay) {
@@ -133,6 +164,12 @@ async function main() {
   const disparo = String(process.env.DISPARO_TOKEN || '').trim();
   const pr = disparo ? await ponerPermiso(url, token, disparo) : null;
   decir('- ' + textoDelPermiso(pr, !!disparo));
+  if (disparo) {
+    const alcance = await veElRepositorio(fila.repo, disparo);
+    const aviso = textoDelAlcance(alcance, fila.repo);
+    if (aviso) decir('- ' + aviso);
+    else decir('- Permiso comprobado: ese token sí ve `' + fila.repo + '`.');
+  }
   const panelUrl = String(process.env.PANEL_URL || '').trim(), panelClave = String(process.env.PANEL_CLAVE || '').trim();
   const hayPanel = !!(panelUrl && panelClave);
   let rp = null;

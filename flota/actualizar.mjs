@@ -42,7 +42,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync, existsSync, appendFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { elegirTiendas, ultimaEtiqueta, version, comparar, cuerpoDelPR } from './nucleo.mjs';
+import { elegirTiendas, laPedida, ultimaEtiqueta, version, comparar, cuerpoDelPR } from './nucleo.mjs';
 import { aplicar } from './aplicar.mjs';
 
 const TOKEN = process.env.FLOTA_TOKEN || '';
@@ -77,7 +77,9 @@ function main() {
   const flota = JSON.parse(readFileSync(process.env.FLOTA_JSON || 'flota.json', 'utf8'));
   const linea = (flota.lineas || {})[LINEA];
   if (!linea) { decir(`### No hay una línea «${LINEA}» en flota.json`); process.exit(1); }
-  const tiendas = elegirTiendas(flota, LINEA, ANILLO).filter(t => !SOLO || t.repo.toLowerCase() === SOLO);
+  const delAnillo = elegirTiendas(flota, LINEA, ANILLO);
+  const pedida = laPedida(delAnillo, SOLO);
+  const tiendas = pedida.tiendas;
 
   const trabajo = mkdtempSync(join(tmpdir(), 'flota-'));
   const semilla = join(trabajo, 'semilla');
@@ -92,7 +94,11 @@ function main() {
   git(semilla, 'worktree', 'add', '--quiet', '--detach', nuevaDir, nueva);
 
   decir(`## Flota · ${linea.producto || LINEA} (\`${LINEA}\`) · hasta el anillo ${ANILLO} · semilla ${nueva}${ENSAYO ? ' · **ENSAYO: no se toca nada**' : ''}\n`);
-  if (!tiendas.length) { decir('Ninguna tienda de esta línea en esos anillos.'); return; }
+  if (!tiendas.length) {
+    decir(pedida.error ||
+      'Ninguna tienda de esta línea en esos anillos. Las de esta línea, con su anillo, están en `flota.json`.');
+    return;
+  }
   if (linea.modo === 'montaje') return porMontaje(tiendas, nueva);
 
   let fallos = 0;

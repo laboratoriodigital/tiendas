@@ -252,12 +252,21 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /Nueva versión/.test(problemaDeIdentidad(Object.assign({}, bien, { hojaOk: false, problema: 'Falta HOJA_ID: pega el ID' }))) &&
      /A0_instalar/.test(problemaDeIdentidad(Object.assign({}, bien, { hojaOk: false, problema: 'Falta HOJA_ID' }))) &&
      !/Nueva versión/.test(problemaDeIdentidad(Object.assign({}, bien, { hojaOk: false, problema: 'No tienes permiso' }))));
+  const { textoDelAlcance } = await import('./conectar.mjs');
+  ok('  ...y comprueba que ESE token vea ESTE repositorio, antes de sembrarlo',
+     textoDelAlcance({ ok: true }, 'lab/x') === '' &&
+     /Only select repositories/.test(textoDelAlcance({ ok: false, codigo: 404 }, 'lab/x')) &&
+     /vencido/.test(textoDelAlcance({ ok: false, codigo: 401 }, 'lab/x')),
+     textoDelAlcance({ ok: false, codigo: 404 }, 'lab/x').slice(0, 70));
   const { registroParaElPanel, textoDelPanel } = await import('./conectar.mjs');
   const rp = registroParaElPanel({ lineas: { tienda: { producto: 'Tienda Panel' } } }, Object.assign({}, fila, { linea: 'tienda' }),
                                  'https://script.google.com/macros/s/AKfy/exec', 'tk-1', 'alta-x');
   ok('  ...y avisa a la hoja de administración con lo que ella necesita (y su clave)',
      rp.a === 'registrar_tienda' && rp.clave === 'alta-x' && rp.repo === fila.repo && rp.comercio === fila.nombre &&
      rp.producto === 'Tienda Panel' && rp.token === 'tk-1' && rp.servicio.endsWith('/exec'));
+  ok('  ...con su anillo, para que el portal no obligue a abrir flota.json',
+     registroParaElPanel({ lineas: {} }, Object.assign({}, fila, { anillo: 2 }), 'u', 't', 'c').anillo === '2' &&
+     registroParaElPanel({ lineas: {} }, { nombre: 'x', repo: 'a/b' }, 'u', 't', 'c').anillo === '');
   ok('  ...diciendo qué pasó, y sin secretos no lo intenta',
      /PANEL_URL/.test(textoDelPanel(null, false)) && /registrada/.test(textoDelPanel({ ok: true, nueva: true, fila: 5 }, true)) &&
      /servicio y su token/.test(textoDelPanel({ ok: true, nueva: false, fila: 5 }, true)) && /a mano/.test(textoDelPanel({ ok: false, error: 'Clave' }, true)) &&
@@ -289,6 +298,19 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
     ok('  ...lo que publica es la carpeta del panel, y nada más',
        w.assets && w.assets.directory === './panel' && !w.main,
        JSON.stringify(w.assets));
+  }
+  {
+    const { laPedida } = await import('./nucleo.mjs');
+    const lista = [{ repo: 'lab/prueba1', nombre: 'prueba1', anillo: 2 },
+                   { repo: 'lab/cafe', nombre: 'Café', anillo: 1 }];
+    ok('«SOLO ESTA TIENDA» se entiende por el nombre corto, no solo por dueño/repositorio',
+       laPedida(lista, 'prueba1').tiendas.length === 1 &&
+       laPedida(lista, 'LAB/Prueba1').tiendas.length === 1 &&
+       laPedida(lista, '').tiendas.length === 2);
+    ok('  ...y si no existe, lo dice con la lista y el anillo de las que sí',
+       /No hay ninguna tienda/.test(laPedida(lista, 'prueba9').error) &&
+       /anillo 2/.test(laPedida(lista, 'prueba9').error),
+       laPedida(lista, 'prueba9').error.slice(0, 80));
   }
   ok('  ...y cada tienda lleva a su «volver atrás» (0.18.0)',
      (h.match(/workflows\/restaurar\.yml/g) || []).length >= 2);
