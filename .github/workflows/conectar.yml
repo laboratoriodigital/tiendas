@@ -39,6 +39,14 @@ on:
       maestro_token:
         description: 'El token tk-… (menú de la hoja › Diagnóstico)'
         required: true
+      # 0.20.2 · AL FINAL (R1). Después de rotar `DISPARO_TOKEN`, el maestro se
+      # queda con el anterior: desde la 0.20.2 lo reemplaza solo cuando el
+      # guardado ya no sirve, y esta casilla es para el caso en que sí sirve y
+      # aun así se quiere cambiar (bitácora 89).
+      forzar_permiso:
+        description: 'Reemplazar el permiso de GitHub del maestro aunque el que tenga siga sirviendo'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -64,6 +72,7 @@ jobs:
           MAESTRO_URL: ${{ inputs.maestro_url }}
           MAESTRO_TOKEN: ${{ inputs.maestro_token }}
           DISPARO_TOKEN: ${{ secrets.DISPARO_TOKEN }}
+          FORZAR_PERMISO: ${{ inputs.forzar_permiso }}
           PANEL_URL: ${{ secrets.PANEL_URL }}
           PANEL_CLAVE: ${{ secrets.PANEL_CLAVE }}
         run: node flota/conectar.mjs

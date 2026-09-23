@@ -197,7 +197,11 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   const flujoAlta = readFileSync(new URL('../.github/workflows/alta.yml', import.meta.url), 'utf8');
   const flujoCon = readFileSync(new URL('../.github/workflows/conectar.yml', import.meta.url), 'utf8');
   ok('EL ALTA PIDE TRES COSAS: el nombre, el comercio y el producto', campos(flujoAlta).join() === 'nombre,comercio,producto', campos(flujoAlta).join());
-  ok('  ...y conectar, las tres que da el Diagnóstico de la hoja', campos(flujoCon).join() === 'nombre,maestro_url,maestro_token', campos(flujoCon).join());
+  /* 0.20.2 · Las tres obligatorias son las del Diagnóstico; la cuarta es una
+     casilla opcional (forzar el permiso) y va AL FINAL, R1. */
+  ok('  ...y conectar, las tres que da el Diagnóstico de la hoja',
+     campos(flujoCon).slice(0, 3).join() === 'nombre,maestro_url,maestro_token' &&
+     campos(flujoCon).join() === 'nombre,maestro_url,maestro_token,forzar_permiso', campos(flujoCon).join());
   ok('  ...el alta CLONA la última etiqueta de la semilla (no necesita «Template repository») y comprueba antes el token',
      /git clone --quiet --depth 1 --branch "\$ETIQUETA"/.test(flujoAlta) && !/\/generate/.test(flujoAlta) &&
      /ALTA_TOKEN no ve la semilla/.test(flujoAlta) && flujoAlta.indexOf('ALTA_TOKEN no ve la semilla') < flujoAlta.indexOf('gh repo create'));
@@ -243,8 +247,13 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   const sem = sembrado(fila);
   const { textoDelPermiso } = await import('./conectar.mjs');
   ok('  ...le pone al maestro su permiso de GitHub, y dice qué pasó en cada caso',
-     /puesto/.test(textoDelPermiso({ ok: true, puesto: true }, true)) && /no se tocó/.test(textoDelPermiso({ ok: true, puesto: false, yaEstaba: true }, true)) &&
+     /puesto/.test(textoDelPermiso({ ok: true, puesto: true }, true)) && /no se tocó \(marca/.test(textoDelPermiso({ ok: true, puesto: false, yaEstaba: true }, true)) &&
      /DISPARO_TOKEN/.test(textoDelPermiso(null, false)) && /a mano/.test(textoDelPermiso({ ok: false, error: 'Acción desconocida: permiso' }, true)));
+  ok('  ...y si el que tenía ya no servía, dice que lo reemplazó (0.20.2)',
+     /ya no servía/.test(textoDelPermiso({ ok: true, puesto: true, reemplazado: true }, true)) &&
+     /exactamente este/.test(textoDelPermiso({ ok: true, puesto: false, mismo: true }, true)) &&
+     /sigue sirviendo/.test(textoDelPermiso({ ok: true, puesto: false, yaEstaba: true }, true)) &&
+     /forzar_permiso/.test(readFileSync(new URL('../.github/workflows/conectar.yml', import.meta.url), 'utf8')));
   const flujoC = readFileSync(new URL('../.github/workflows/conectar.yml', import.meta.url), 'utf8');
   ok('  ...con DISPARO_TOKEN, que solo pide Actions, y por POST', /DISPARO_TOKEN: \$\{\{ secrets\.DISPARO_TOKEN \}\}/.test(flujoC) &&
      /method: 'POST'/.test(readFileSync(new URL('./conectar.mjs', import.meta.url), 'utf8')));

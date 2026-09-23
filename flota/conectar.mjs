@@ -66,9 +66,10 @@ export function sembrado(fila) {
 
 /* 0.16.0 · 3.4 · El permiso de GitHub del maestro (para Publicar y Actualizar
    desde el panel o el menú). Va por POST: un token no viaja en una dirección. */
-async function ponerPermiso(url, token, tk) {
+async function ponerPermiso(url, token, tk, forzar) {
   const r = await fetch(url, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                               body: JSON.stringify({ a: 'permiso', t: token, tk }) });
+                               body: JSON.stringify(Object.assign({ a: 'permiso', t: token, tk },
+                                                                  forzar ? { forzar: 'si' } : {})) });
   try { return JSON.parse(await r.text()); } catch { return { ok: false, error: 'respuesta que no es JSON (' + r.status + ')' }; }
 }
 
@@ -101,8 +102,12 @@ export function textoDelAlcance(r, repo) {
 /* Qué decir del permiso, según lo que contestó el maestro. */
 export function textoDelPermiso(r, hayToken) {
   if (!hayToken) return 'Permiso de GitHub: no se puso (falta el secreto `DISPARO_TOKEN` en tiendas). Publicar y Actualizar desde el panel esperan a que alguien lo ponga a mano.';
+  /* 0.20.2 · Se dice si REEMPLAZÓ a uno que ya no servía: es la respuesta a
+     «roté el token y sigue igual» (bitácora 89). */
+  if (r && r.ok && r.puesto && r.reemplazado) return 'Permiso de GitHub: el que tenía ya no servía y se reemplazó por el de ahora.';
   if (r && r.ok && r.puesto) return 'Permiso de GitHub: puesto. Publicar y Actualizar ya funcionan desde el panel y el menú.';
-  if (r && r.ok && r.yaEstaba) return 'Permiso de GitHub: ya tenía uno; no se tocó.';
+  if (r && r.ok && r.mismo) return 'Permiso de GitHub: ya tenía exactamente este; no hacía falta tocarlo.';
+  if (r && r.ok && r.yaEstaba) return 'Permiso de GitHub: el que tiene sigue sirviendo; no se tocó (marca «forzar» si quieres cambiarlo igual).';
   if (r && /desconocida/i.test(String(r.error || ''))) return 'Permiso de GitHub: este maestro no sabe recibirlo (Tienda Básica o versión anterior a la 0.16.0). Ponlo a mano en las Propiedades del script como `GITHUB_TOKEN`.';
   return 'Permiso de GitHub: no se pudo poner (' + ((r && r.error) || 'sin respuesta') + ').';
 }
@@ -162,7 +167,8 @@ async function main() {
         `- Escrito en la hoja: ${(s.escritos || []).join(', ') || 'nada (ya estaba)'}` +
         ((s.respetados || []).length ? ` · respetado lo que el comercio ya puso: ${s.respetados.join(', ')}` : ''));
   const disparo = String(process.env.DISPARO_TOKEN || '').trim();
-  const pr = disparo ? await ponerPermiso(url, token, disparo) : null;
+  const forzar = /^(1|true|si|sí)$/i.test(String(process.env.FORZAR_PERMISO || ''));
+  const pr = disparo ? await ponerPermiso(url, token, disparo, forzar) : null;
   decir('- ' + textoDelPermiso(pr, !!disparo));
   if (disparo) {
     const alcance = await veElRepositorio(fila.repo, disparo);
