@@ -244,6 +244,19 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /no abre su hoja/.test(problemaDeIdentidad(Object.assign({}, bien, { hojaOk: false }))) &&
      /dijo que no/.test(problemaDeIdentidad({ ok: false, error: 'Token que no corresponde' })));
   ok('  ...ni la hoja de OTRA tienda', /otra tienda/.test(problemaDeIdentidad(Object.assign({}, bien, { repositorio: 'laboratoriodigital/organico' }))));
+  {
+    const { herramientasQueFaltan } = await import('./alta.mjs');
+    const base = mkdtempSync(join(tmpdir(), 'herr-'));
+    mkdirSync(join(base, '.github', 'workflows'), { recursive: true });
+    mkdirSync(join(base, 'montar'), { recursive: true });
+    writeFileSync(join(base, '.github', 'workflows', 'montaje.yml'),
+      'run: |\n  node montar/preparar-index.mjs --desde\n  node montar/tiempos.mjs || estado=$?\n');
+    writeFileSync(join(base, 'montar', 'preparar-index.mjs'), '// ahí está');
+    ok('EL ALTA no entrega una tienda cuyo flujo llame a algo que no trae (0.20.3)',
+       herramientasQueFaltan(base).join() === 'montar/tiempos.mjs', herramientasQueFaltan(base).join());
+    writeFileSync(join(base, 'montar', 'tiempos.mjs'), '// y ahora también');
+    ok('  ...y con todas presentes no se queja', herramientasQueFaltan(base).length === 0);
+  }
   const sem = sembrado(fila);
   const { textoDelPermiso } = await import('./conectar.mjs');
   ok('  ...le pone al maestro su permiso de GitHub, y dice qué pasó en cada caso',

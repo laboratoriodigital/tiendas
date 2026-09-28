@@ -24,7 +24,7 @@
      node flota/alta.mjs agregar     (escribe la fila en flota.json)
      node flota/alta.mjs lista       (lo que falta, en Markdown)
    ═══════════════════════════════════════════════════════════════════════════ */
-import { readFileSync, writeFileSync, appendFileSync, existsSync, rmSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync, existsSync, rmSync, copyFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
@@ -85,6 +85,26 @@ export function preparar(dir, { nombre, comercio, linea, producto, semilla, etiq
     `Nace de \`${semilla}\` en la versión ${etiqueta}. Lo que es de la semilla se actualiza ` +
     `desde allá (docs/ACTUALIZAR-UNA-TIENDA.md); lo de esta tienda vive en su hoja de cálculo.\n`);
   return hecho;
+}
+
+/* 0.20.3 · EL REPOSITORIO NUEVO TRAE LO QUE SUS FLUJOS EJECUTAN (bitácora 90).
+   El primer montaje de una tienda se cayó con «Cannot find module
+   montar/tiempos.mjs»: el flujo llamaba a una herramienta que ese repositorio
+   no tenía. Da igual por qué faltó —una etiqueta anterior, un archivo que no
+   viajó—: lo que no puede pasar es enterarse en la tienda del cliente, media
+   hora después, en vez de aquí, mientras se crea. Se miran los `node
+   montar/x.mjs` de los flujos que acaban de copiarse y se comprueba que estén.
+
+   No adivina nada: lee los flujos del repositorio recién clonado. */
+export function herramientasQueFaltan(dir) {
+  const flujos = join(dir, '.github', 'workflows');
+  if (!existsSync(flujos)) return [];
+  const pedidas = new Set();
+  readdirSync(flujos).filter(f => /\.ya?ml$/.test(f)).forEach(f => {
+    const t = readFileSync(join(flujos, f), 'utf8');
+    for (const m of t.matchAll(/node\s+(montar\/[\w.-]+\.mjs)/g)) pedidas.add(m[1]);
+  });
+  return [...pedidas].filter(r => !existsSync(join(dir, r))).sort();
 }
 
 /* La fila de flota.json. Anillo 2: una tienda nueva no es la de pruebas ni de
@@ -158,6 +178,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   } else if (que === 'preparar') {
     const h = preparar(process.env.DIR, Object.assign({}, datos, v, { producto: l.producto, semilla: l.semilla, etiqueta: process.env.ETIQUETA }));
     console.log('Sin lo de otra tienda: ' + (h.borrados.join(', ') || 'nada') + '. De la plantilla: ' + (h.plantilla.join(', ') || '—') + '.');
+    const faltan = herramientasQueFaltan(process.env.DIR);
+    if (faltan.length) {
+      console.error('Esta versión de la semilla llama a herramientas que no trae: ' + faltan.join(', ') +
+        '.\nEl primer montaje de la tienda se caería en ese paso. Corta una versión nueva de la ' +
+        'semilla (release) con esos archivos, o corre el alta pidiendo una etiqueta que sí los tenga.');
+      process.exit(1);
+    }
+    console.log('Herramientas de los flujos: todas presentes.');
   } else if (que === 'agregar') {
     writeFileSync(archivo, JSON.stringify(agregar(flota, Object.assign({}, datos, v)), null, 2) + '\n');
   } else if (que === 'lista') {
