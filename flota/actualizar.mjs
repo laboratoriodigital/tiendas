@@ -44,6 +44,7 @@ import { readFileSync, mkdtempSync, existsSync, appendFileSync, writeFileSync } 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { elegirTiendas, laPedida, ultimaEtiqueta, version, comparar, cuerpoDelPR } from './nucleo.mjs';
+import { entregar, cliente } from './flujos.mjs';
 import { aplicar } from './aplicar.mjs';
 
 const TOKEN = process.env.FLOTA_TOKEN || '';
@@ -100,7 +101,7 @@ function main() {
       'Ninguna tienda de esta línea en esos anillos. Las de esta línea, con su anillo, están en `flota.json`.');
     return;
   }
-  if (linea.modo === 'montaje') return porMontaje(tiendas, nueva);
+  if (linea.modo === 'montaje') return porMontaje(tiendas, nueva, linea.semilla);
 
   let fallos = 0;
   for (const t of tiendas) {
@@ -193,7 +194,7 @@ export function textoDeLasQueNoEstan(nombres) {
 }
 
 /* ── Modo `montaje`: la tienda se actualiza sola; la flota la dispara y espera ── */
-function porMontaje(tiendas, nueva) {
+function porMontaje(tiendas, nueva, semillaDeLaLinea) {
   const gh = (...a) => execFileSync('gh', a, { env: Object.assign({}, process.env, { GH_TOKEN: TOKEN }), stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
   const orden = [...tiendas].sort((a, b) => Number(a.anillo) - Number(b.anillo));
   const noEstan = [];
@@ -229,6 +230,16 @@ function porMontaje(tiendas, nueva) {
       process.exit(1);
     }
     decir(`- **${t.nombre}** (${desde || '?'} → ${nueva}): ✓ actualizada (${corrida.url}).`);
+    /* 0.22.1 · Y SUS FLUJOS, QUE LA TIENDA NO PUEDE PONERSE SOLA (bitácora
+       103). Después y no antes: si el montaje falla, la tienda se queda entera
+       en la versión de antes, flujos incluidos. */
+    if (!ENSAYO) try {
+      const h = entregar(cliente(TOKEN), { semilla: semillaDeLaLinea, etiqueta: nueva, tienda: t.repo, ensayo: false });
+      decir(h.escritos.length ? `  - y sus flujos: ${h.escritos.map(x => '`' + x.split('/').pop() + '`').join(', ')}.`
+                              : '  - sus flujos ya estaban al día.');
+    } catch (e) {
+      decir(`  - ⚠ sus flujos no se pudieron poner (${tapar(e).split('\n')[0]}). Se puede repetir con **flota › flujos**.`);
+    }
   }
   /* Lo que hay que arreglar, al final y una sola vez: si se dijera tienda por
      tienda, en una flota con tres borradas serían tres avisos iguales. */

@@ -1,6 +1,13 @@
 # LA FLOTA (S3 · versión 2: automática)
 #
-# Dos acciones, a mano desde Actions › flota › Run workflow:
+# Tres acciones, a mano desde Actions › flota › Run workflow:
+#
+#   flujos      (0.22.1 · bitácora 103) Pone en cada tienda de la línea los
+#               `.github/workflows` de la semilla, en la versión pedida, por la
+#               API y solo los que cambian. Una tienda no puede escribir sus
+#               propios flujos; la flota sí. `actualizar` lo hace sola después de
+#               cada tienda que se actualiza bien; esto es para pedirlo a mano
+#               —o para rescatar una tienda que se quedó con flujos viejos—.
 #
 #   estado      Una fila por tienda: versión del repositorio, última de su
 #               semilla, qué contesta la tienda publicada y si tiene una
@@ -43,7 +50,7 @@ on:
         description: 'Qué hacer'
         type: choice
         default: estado
-        options: [estado, actualizar]
+        options: [estado, actualizar, flujos]
       linea:
         description: 'Línea a actualizar (semilla)'
         type: choice
@@ -97,7 +104,13 @@ jobs:
       # arriba, y ningún paso de abajo lo repite.
       - name: Qué es esta corrida
         run: |
-          if [ "$GITHUB_EVENT_NAME" = "schedule" ] || [ "${{ inputs.accion }}" = "estado" ]; then
+          if [ "${{ inputs.accion }}" = "flujos" ]; then
+            titulo="Entregar los flujos a la línea ${{ inputs.linea }}"
+            que="Copia los \`.github/workflows\` de la semilla a cada tienda de esa línea, solo los que cambian."
+            que2="Una tienda no puede escribir sus propios flujos; la flota sí (bitácora 103)."
+            pedido="${{ inputs.ensayo == true && '**ensayo**: dice qué haría y no toca nada' || '**de verdad**' }}"
+            [ -n "${{ inputs.tienda }}" ] && pedido="$pedido · solo \`${{ inputs.tienda }}\`"
+          elif [ "$GITHUB_EVENT_NAME" = "schedule" ] || [ "${{ inputs.accion }}" = "estado" ]; then
             titulo="El estado de la flota"
             que="Mira cada tienda: qué versión tiene el repositorio, cuál es la última de su semilla, qué"
             que2="contesta la tienda publicada y si tiene una actualización esperando. **No actualiza nada.**"
@@ -200,3 +213,13 @@ jobs:
           SIN_BASE: ${{ inputs.sin_base }}
           TIENDA: ${{ inputs.tienda }}
         run: node flota/actualizar.mjs
+
+      - name: Flujos
+        if: github.event_name == 'workflow_dispatch' && inputs.accion == 'flujos'
+        env:
+          FLOTA_TOKEN: ${{ secrets.FLOTA_TOKEN }}
+          LINEA: ${{ inputs.linea }}
+          VERSION: ${{ inputs.version }}
+          ENSAYO: ${{ inputs.ensayo }}
+          TIENDA: ${{ inputs.tienda }}
+        run: node flota/flujos.mjs

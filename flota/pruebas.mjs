@@ -340,6 +340,62 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
 }
 
+/* ═══ LOS FLUJOS DE UNA TIENDA LOS ENTREGA LA FLOTA (0.22.1 · bitácora 103) ═══
+   Una tienda no puede escribir sus propios `.github/workflows`: su push va con
+   el permiso de Actions —`actions/checkout` deja una cabecera que gana a
+   cualquier token en la URL— y ese no puede nunca. Así que una tienda con
+   flujos nuevos se quedaba sin publicar nada, y el arreglo viajaba justo en
+   esos flujos. La flota sí puede: esto se prueba sin red, con un GitHub de
+   mentira en memoria. */
+{
+  const { flujosDeLaSemilla, queHacer, entregar } = await import('./flujos.mjs');
+  ok('LOS FLUJOS que se entregan son los que la semilla declara suyos, y nada más',
+     flujosDeLaSemilla(['maestro.gs', '.github/workflows/montaje.yml', '.github/workflows/fotos.yml',
+                        '.github/workflows/', 'docs/']).join() === '.github/workflows/montaje.yml,.github/workflows/fotos.yml');
+  ok('  ...y se decide cada uno: igual, nuevo o cambia',
+     queHacer('a', null) === 'nuevo' && queHacer('a', 'a') === 'igual' && queHacer('a', 'b') === 'cambia');
+
+  /* Un GitHub de mentira: la semilla en v9, la tienda con uno igual, uno viejo
+     y uno que le falta. */
+  const repo = {
+    'lab/semilla@v9:semilla.json': JSON.stringify({ propios: ['maestro.gs', '.github/workflows/montaje.yml',
+                                     '.github/workflows/fotos.yml', '.github/workflows/restaurar.yml'] }),
+    'lab/semilla@v9:.github/workflows/montaje.yml': 'montaje v9',
+    'lab/semilla@v9:.github/workflows/fotos.yml': 'fotos v9',
+    'lab/semilla@v9:.github/workflows/restaurar.yml': 'restaurar v9',
+    'lab/t1@:.github/workflows/montaje.yml': 'montaje v9',
+    'lab/t1@:.github/workflows/fotos.yml': 'fotos VIEJO'
+  };
+  const puestos = [];
+  const falso = {
+    contenido: (r, ruta, ref) => {
+      const k = r + '@' + (ref || '') + ':' + ruta;
+      return k in repo ? { texto: repo[k], sha: 'sha-' + k.length } : null;
+    },
+    gh: (...a) => { puestos.push(a); return '{}'; }
+  };
+  const h = entregar(falso, { semilla: 'lab/semilla', etiqueta: 'v9', tienda: 'lab/t1', ensayo: false });
+  ok('  ...escribe SOLO lo que cambia o falta, y lo igual no se toca',
+     h.escritos.join() === '.github/workflows/fotos.yml,.github/workflows/restaurar.yml (nuevo)' &&
+     h.iguales.join() === '.github/workflows/montaje.yml' && puestos.length === 2,
+     h.escritos.join(' · '));
+  ok('  ...y al reemplazar uno dice cuál reemplaza (sha), o GitHub lo rechaza',
+     puestos[0].includes('-X') && puestos[0].includes('PUT') &&
+     puestos[0].some(x => /^sha=/.test(x)) && !puestos[1].some(x => /^sha=/.test(x)));
+  puestos.length = 0;
+  entregar(falso, { semilla: 'lab/semilla', etiqueta: 'v9', tienda: 'lab/t1', ensayo: true });
+  ok('  ...y en ensayo no escribe nada', puestos.length === 0);
+
+  const act = readFileSync(new URL('./actualizar.mjs', import.meta.url), 'utf8');
+  const tras = act.slice(act.indexOf('function porMontaje'));
+  ok('  ...y `actualizar` los entrega DESPUÉS de que la tienda se actualiza bien',
+     /entregar\(cliente\(TOKEN\)/.test(tras) && tras.indexOf('✓ actualizada') < tras.indexOf('entregar(cliente(TOKEN)'),
+     'si el montaje falla, la tienda se queda entera en la versión de antes, flujos incluidos');
+  const fy = readFileSync(new URL('../.github/workflows/flota.yml', import.meta.url), 'utf8');
+  ok('  ...y se pueden pedir a mano: flota › flujos',
+     /options: \[estado, actualizar, flujos\]/.test(fy) && /node flota\/flujos\.mjs/.test(fy));
+}
+
 /* ═══ EL PERMISO DE LA SEMILLA SE REFRESCA EN CADA CONEXIÓN (0.21.2 · bit. 101) ═══
    `alta` copia `SEMILLA_TOKEN` a la tienda el día que nace y nadie lo volvía a
    tocar. El día que ese token se rehace, cada tienda se queda con el valor viejo
