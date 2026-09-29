@@ -99,6 +99,24 @@ export function textoDelAlcance(r, repo) {
          'disparar nada.';
 }
 
+/* 0.20.8 · PRIMERO SE COMPRUEBA, DESPUÉS SE SIEMBRA (bitácora 96). El
+   comentario de arriba decía «ANTES de sembrárselo» y el orden del programa
+   hacía lo contrario: sembraba el token y después preguntaba si servía. Con eso,
+   un `DISPARO_TOKEN` vencido o corto REEMPLAZA al que la tienda tuviera bueno
+   —desde la 0.20.2 el maestro reemplaza el que ya no sirve— y el fallo aparece
+   semanas después, el día que el comercio toca Publicar y le sale «el permiso no
+   sirve o se venció». Pasó en la tienda de prueba.
+
+   Un permiso que no sirve no se siembra. Y no por eso se cae `conectar`: los
+   secretos, la hoja y el primer montaje son lo que de verdad conecta la tienda;
+   lo que no va a funcionar se dice, y se dice qué arreglar. */
+export function quePasaConElPermiso(alcance, repo) {
+  if (!alcance || alcance.ok) return { sembrar: true, texto: 'Permiso comprobado: ese token sí ve `' + repo + '`.' };
+  return { sembrar: false,
+           texto: textoDelAlcance(alcance, repo) + '\n- **El permiso no se sembró**, a propósito: sembrar uno que ' +
+                  'no sirve borra el que la tienda pudiera tener bueno. Todo lo demás de `conectar` sí quedó hecho.' };
+}
+
 /* Qué decir del permiso, según lo que contestó el maestro. */
 export function textoDelPermiso(r, hayToken) {
   if (!hayToken) return 'Permiso de GitHub: no se puso (falta el secreto `DISPARO_TOKEN` en tiendas). Publicar y Actualizar desde el panel esperan a que alguien lo ponga a mano.';
@@ -168,13 +186,13 @@ async function main() {
         ((s.respetados || []).length ? ` · respetado lo que el comercio ya puso: ${s.respetados.join(', ')}` : ''));
   const disparo = String(process.env.DISPARO_TOKEN || '').trim();
   const forzar = /^(1|true|si|sí)$/i.test(String(process.env.FORZAR_PERMISO || ''));
-  const pr = disparo ? await ponerPermiso(url, token, disparo, forzar) : null;
-  decir('- ' + textoDelPermiso(pr, !!disparo));
-  if (disparo) {
-    const alcance = await veElRepositorio(fila.repo, disparo);
-    const aviso = textoDelAlcance(alcance, fila.repo);
-    if (aviso) decir('- ' + aviso);
-    else decir('- Permiso comprobado: ese token sí ve `' + fila.repo + '`.');
+  if (!disparo) {
+    decir('- ' + textoDelPermiso(null, false));
+  } else {
+    const q = quePasaConElPermiso(await veElRepositorio(fila.repo, disparo), fila.repo);
+    decir('- ' + q.texto);
+    if (q.sembrar) decir('- ' + textoDelPermiso(await ponerPermiso(url, token, disparo, forzar), true));
+    else console.log('::warning::DISPARO_TOKEN no sirve para ' + fila.repo + ': el permiso de GitHub no se sembró.');
   }
   const panelUrl = String(process.env.PANEL_URL || '').trim(), panelClave = String(process.env.PANEL_CLAVE || '').trim();
   const hayPanel = !!(panelUrl && panelClave);

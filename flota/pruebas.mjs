@@ -340,6 +340,33 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
 }
 
+/* ═══ EL PERMISO SE COMPRUEBA ANTES DE SEMBRARLO (0.20.8 · bitácora 96) ═══
+   `conectar` sembraba el `DISPARO_TOKEN` en el maestro y DESPUÉS preguntaba si
+   ese token veía la tienda. Desde la 0.20.2 el maestro reemplaza el permiso que
+   ya no sirve por el que llega, así que un token vencido o corto pisaba uno
+   bueno y el fallo salía semanas después, cuando el comercio tocaba Publicar:
+   «El permiso de esta tienda no sirve o se venció». */
+{
+  const { quePasaConElPermiso, textoDelAlcance } = await import('./conectar.mjs');
+  const bueno = quePasaConElPermiso({ ok: true, codigo: 200 }, 'lab/prueba1');
+  const vencido = quePasaConElPermiso({ ok: false, codigo: 401 }, 'lab/prueba1');
+  const corto = quePasaConElPermiso({ ok: false, codigo: 404 }, 'lab/prueba1');
+  ok('UN PERMISO QUE SIRVE se siembra; uno que no, NO',
+     bueno.sembrar === true && vencido.sembrar === false && corto.sembrar === false);
+  ok('  ...y se dice qué pasa con cada uno: vencido, o que no alcanza esta tienda',
+     /vencido o mal copiado/.test(vencido.texto) && /no se sembró/i.test(vencido.texto) &&
+     /Only select repositories/.test(corto.texto) && /no se sembró/i.test(corto.texto) &&
+     /sí ve/.test(bueno.texto),
+     'sembrar uno muerto borra el bueno que la tienda pudiera tener');
+
+  const fuente = readFileSync(new URL('./conectar.mjs', import.meta.url), 'utf8');
+  const main = fuente.slice(fuente.indexOf('async function main'));
+  ok('  ...y el programa lo hace EN ESE ORDEN, no solo lo cuenta',
+     main.indexOf('veElRepositorio(') !== -1 &&
+     main.indexOf('veElRepositorio(') < main.indexOf('ponerPermiso('),
+     'el comentario decía «antes de sembrárselo» y el código sembraba primero');
+}
+
 /* ═══ EL RESUMEN DE CADA FLUJO (0.20.4 · bitácora 91) ═══
    La misma regla que vigila la semilla en `pruebas/montaje.js`, aquí para los
    tres flujos de servicio: el resumen abre con una ficha —qué es esta corrida,
