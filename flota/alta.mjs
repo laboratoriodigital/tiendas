@@ -141,7 +141,7 @@ export function lista(flota, { repo, comercio, linea, sitio, nombre, etiqueta })
     '   4. `A1_generarStub` en el maestro DE ESTA TIENDA —no en el de la semilla ni en el de otra—,',
     '      y pega lo que imprime en Extensiones › Apps Script de la hoja. Un stub de otro maestro',
     '      administra la otra tienda: desde la 0.18.0 el maestro lo rechaza (bitácora 76).',
-    '   5. En el editor del maestro, ejecuta **diagnosticoCompleto** (el menú de la hoja no enseña el token):',
+    '   5. En el editor del maestro, ejecuta **A2_diagnosticoCompleto** (el menú de la hoja no enseña el token):',
     '      copia *Servicio* y *Token*. Ahí mismo dice el enlace de *Conectar*.',
     '',
     `**2. Conectar** — [Actions › conectar](https://github.com/${String(l.semilla || '').split('/')[0]}/tiendas/actions/workflows/conectar.yml)`,

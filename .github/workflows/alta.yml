@@ -167,7 +167,7 @@ jobs:
           if [ -n "$SEMILLA_TOKEN" ]; then
             printf '%s' "$SEMILLA_TOKEN" | gh secret set SEMILLA_TOKEN -R "$REPO"
           else
-            echo "Sin SEMILLA_TOKEN aquí: la tienda se actualizará igual, pero sin traer los flujos." >> "$GITHUB_STEP_SUMMARY"
+            echo "Sin SEMILLA_TOKEN aquí: la tienda solo podrá leer la semilla si es pública. Sus flujos los entrega la flota igual." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Su fila en flota.json, y lo que falta

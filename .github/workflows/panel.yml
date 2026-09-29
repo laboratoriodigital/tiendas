@@ -129,8 +129,19 @@ jobs:
           test -f semilla/panel.gs
           test -f semilla/montar/publicar-maestro.mjs
 
-      - name: clasp
-        run: npm i -g @google/clasp@3
+      # clasp solo lee sus credenciales de ~/.clasprc.json: tenerlas en el
+      # entorno no sirve de nada. Hasta la auditoría de documentos del
+      # 29-sep-2026 este paso no las escribía, y el flujo no había corrido
+      # nunca con los secretos puestos (bitácora 106). Se revisa antes qué hay
+      # en el secreto, como en `montaje`: el error de pegar un `.clasp.json` en
+      # su lugar ya pasó una vez.
+      - name: clasp y la sesión de Google del panel
+        env:
+          CLASPRC: ${{ secrets.PANEL_CLASPRC }}
+        run: |
+          node semilla/montar/revisar-clasprc.mjs
+          npm i -g @google/clasp@3
+          printf '%s' "$CLASPRC" > ~/.clasprc.json
 
       # La herramienta es la de la semilla, tal cual: lo único que cambia es qué
       # archivo sube y a qué proyecto.

@@ -3,7 +3,7 @@
 # DÓNDE ESTÁ: github.com/laboratoriodigital/tiendas › pestaña Actions › en la
 # lista de la izquierda, «conectar» › botón «Run workflow» (a la derecha).
 # Enlace directo: https://github.com/laboratoriodigital/tiendas/actions/workflows/conectar.yml
-# Lo da también el Diagnóstico de la hoja, y el botón «Conectar» del panel de
+# Lo da también A2_diagnosticoCompleto en el editor del maestro, y el botón «Conectar» del panel de
 # la flota. (Aparece solo cuando este archivo está en `main`.)
 #
 # ═══ SECRETOS (en este repositorio) ═══
@@ -17,7 +17,8 @@
 #   PANEL_CLAVE    tiendas» y la clave de su menú › Clave para el alta. Con
 #                  ellos, conectar deja la tienda registrada en esa hoja.
 #
-# TRES CAMPOS, los que da el menú de la hoja › Diagnóstico. Lo demás lo
+# TRES CAMPOS, los que da A2_diagnosticoCompleto en el editor del maestro (el
+# Diagnóstico del menú de la hoja NO enseña el token, a propósito). Lo demás lo
 # averigua (flota/conectar.mjs): la hoja y el proyecto se los pregunta al
 # maestro; el repositorio, el comercio y la dirección los sabe flota.json, y
 # los escribe en la hoja sin pisar lo que el comercio ya puso. Después pone los
@@ -34,10 +35,10 @@ on:
         description: 'El nombre corto de la tienda (el mismo del alta)'
         required: true
       maestro_url:
-        description: 'La URL del servicio (menú de la hoja › Diagnóstico)'
+        description: 'La URL del servicio (editor del maestro › A2_diagnosticoCompleto)'
         required: true
       maestro_token:
-        description: 'El token tk-… (menú de la hoja › Diagnóstico)'
+        description: 'El token tk-… (editor del maestro › A2_diagnosticoCompleto)'
         required: true
       # 0.20.2 · AL FINAL (R1). Después de rotar `DISPARO_TOKEN`, el maestro se
       # queda con el anterior: desde la 0.20.2 lo reemplaza solo cuando el
@@ -75,8 +76,8 @@ jobs:
         run: |
           fila=$(NOMBRE='${{ inputs.nombre }}' node -e "
             const f = require('./flota.json');
-            const t = f.tiendas.filter(x => x.nombre === process.env.NOMBRE || (x.repositorio||'').endsWith('/' + process.env.NOMBRE))[0];
-            process.stdout.write(t ? '\`' + (t.repositorio || t.nombre) + '\`, ' + (t.comercio || '') + ', anillo ' + (t.anillo === undefined ? 'sin asignar' : t.anillo)
+            const t = f.tiendas.filter(x => x.nombre === process.env.NOMBRE || (x.repo||'').endsWith('/' + process.env.NOMBRE))[0];
+            process.stdout.write(t ? '\`' + (t.repo || t.nombre) + '\`, ' + (t.sitio || '') + ', anillo ' + (t.anillo === undefined ? 'sin asignar' : t.anillo)
                                    : 'no está en flota.json todavía');")
           {
             echo "## Conectar ${{ inputs.nombre }} con su hoja"

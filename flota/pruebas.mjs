@@ -340,6 +340,31 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
 }
 
+/* ═══ LA FLOTA RETIRA LOS FLUJOS QUE LA SEMILLA QUITÓ (0.22.3 · bitácora 106) ═══ */
+{
+  const { flujosRetirados, entregar } = await import('./flujos.mjs');
+  const conf = { propios: ['.github/workflows/montaje.yml'],
+                 retirados: ['servicio', '.github/workflows/tienda-nueva.yml', '.github/workflows/montaje.yml'] };
+  ok('LOS FLUJOS RETIRADOS: solo los de .github/workflows, y nunca uno que la semilla todavía entrega',
+     flujosRetirados(conf).join() === '.github/workflows/tienda-nueva.yml');
+  // Con un cliente de mentira: qué pide borrar, con qué sha, y que el ensayo no borra.
+  const llamadas = [];
+  const archivos = {
+    'sem:semilla.json': JSON.stringify(conf), 'sem:.github/workflows/montaje.yml': 'm',
+    'tie:.github/workflows/montaje.yml': 'm', 'tie:.github/workflows/tienda-nueva.yml': 'viejo' };
+  const falso = { gh: (...a) => { llamadas.push(a); return '{}'; },
+    contenido: (repo, ruta) => { const k = (repo === 'lab/semilla' ? 'sem:' : 'tie:') + ruta;
+      return k in archivos ? { texto: archivos[k], sha: 'sha-' + ruta.split('/').pop() } : null; } };
+  const h = entregar(falso, { semilla: 'lab/semilla', etiqueta: 'v9', tienda: 'lab/t', ensayo: false });
+  const borra = llamadas.filter(a => a.includes('DELETE'));
+  ok('  ...y la flota los quita de la tienda, con su sha, y lo cuenta',
+     h.retirados.join() === '.github/workflows/tienda-nueva.yml' && borra.length === 1 &&
+     borra[0].includes('repos/lab/t/contents/.github/workflows/tienda-nueva.yml') && borra[0].includes('sha=sha-tienda-nueva.yml'));
+  llamadas.length = 0;
+  entregar(falso, { semilla: 'lab/semilla', etiqueta: 'v9', tienda: 'lab/t', ensayo: true });
+  ok('  ...y en ensayo no borra nada', llamadas.length === 0);
+}
+
 /* ═══ UNA TIENDA PUEDE ESTAR FUERA DEL REPARTO (Flota · bitácora 105) ═══
    Una tienda de prueba abandonada en el anillo 2 era la primera en la cola: su
    montaje fallaba y, como debe ser, las siguientes no se tocaban —entre ellas
@@ -356,9 +381,11 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      elegirTiendas(fl, 'tienda', 2).map(t => t.nombre).join() === 'buena,uno' &&
      enReparto({ anillo: 'fuera' }) === false && enReparto({ anillo: 0 }) === true);
   const flota = JSON.parse(readFileSync(new URL('../flota.json', import.meta.url), 'utf8'));
+  /* Y `prueba-panel` no aportaba nada: se borró (bitácora 105). Si alguien la
+     devuelve a la lista, que sea a propósito y con anillo. */
   const vieja = flota.tiendas.filter(t => t.nombre === 'prueba-panel')[0];
-  ok('  ...y `prueba-panel` (0.15.0, abandonada) está fuera: ya no tapa el anillo 2',
-     !vieja || vieja.anillo === 'fuera', vieja ? 'anillo ' + vieja.anillo : 'no está en la lista');
+  ok('  ...y `prueba-panel` (0.15.0, abandonada) ya no está en la flota: no tapa el anillo 2',
+     !vieja, vieja ? 'sigue, anillo ' + vieja.anillo : '');
   const fu = readFileSync(new URL('./flujos.mjs', import.meta.url), 'utf8');
   ok('  ...y tampoco recibe flujos: fuera es fuera', /enReparto\(t\)/.test(fu));
   const act = readFileSync(new URL('./actualizar.mjs', import.meta.url), 'utf8');
@@ -483,6 +510,12 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
   ok('  ...y la credencial de Google no se imprime en ninguna parte',
      !/echo[^\n]*PANEL_CLASPRC/.test(y),
      'un resumen es una página web: lo que se escribe ahí queda escrito');
+  /* bitácora 106: clasp solo lee ~/.clasprc.json, y el flujo nunca lo escribía.
+     No se había notado porque nunca había corrido con los secretos puestos. */
+  const escribe = y.indexOf('> ~/.clasprc.json'), sube = y.indexOf('node montar/publicar-maestro.mjs');
+  ok('  ...y le ENTREGA a clasp la credencial: escribe ~/.clasprc.json desde PANEL_CLASPRC antes de subir, revisándola primero',
+     escribe > 0 && escribe < sube && /CLASPRC: \$\{\{ secrets\.PANEL_CLASPRC \}\}[\s\S]*revisar-clasprc\.mjs[\s\S]*> ~\/\.clasprc\.json/.test(y),
+     'sin eso, clasp contesta «No credentials found» la primera vez que alguien lo corra');
 }
 
 /* ═══ EL PERMISO SE COMPRUEBA ANTES DE SEMBRARLO (0.20.8 · bitácora 96) ═══

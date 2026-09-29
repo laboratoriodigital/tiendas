@@ -27,6 +27,17 @@ export function flujosDeLaSemilla(propios) {
   return (propios || []).filter(p => String(p).indexOf('.github/workflows/') === 0 && /\.ya?ml$/.test(p));
 }
 
+/* 0.22.3 · Y LOS QUE LA SEMILLA RETIRÓ (bitácora 106). `retirados` de
+   `semilla.json` los borra la actualización de la tienda, pero dentro de
+   `.github/workflows` la tienda no puede escribir —ni borrar—: se quedaban
+   para siempre (`tienda-nueva.yml`). Los quita la flota, con el mismo
+   permiso con que pone los demás. Nunca uno que la semilla todavía entrega. */
+export function flujosRetirados(conf) {
+  const propios = new Set((conf && conf.propios) || []);
+  return ((conf && conf.retirados) || []).filter(r =>
+    String(r).indexOf('.github/workflows/') === 0 && /\.ya?ml$/.test(r) && !propios.has(r));
+}
+
 /* Qué hacer con uno: igual (no se toca), nuevo o cambia (se escribe). */
 export function queHacer(enSemilla, enTienda) {
   if (enTienda === null || enTienda === undefined) return 'nuevo';
@@ -56,8 +67,9 @@ export function cliente(token) {
 export function entregar({ gh, contenido }, { semilla, etiqueta, tienda, ensayo }) {
   const conf = contenido(semilla, 'semilla.json', etiqueta);
   if (!conf) throw new Error(`la semilla ${semilla} no tiene semilla.json en ${etiqueta}`);
-  const rutas = flujosDeLaSemilla(JSON.parse(conf.texto).propios);
-  const hecho = { escritos: [], iguales: [] };
+  const sj = JSON.parse(conf.texto);
+  const rutas = flujosDeLaSemilla(sj.propios);
+  const hecho = { escritos: [], iguales: [], retirados: [] };
   for (const ruta of rutas) {
     const n = contenido(semilla, ruta, etiqueta);
     if (!n) continue;
@@ -72,6 +84,16 @@ export function entregar({ gh, contenido }, { semilla, etiqueta, tienda, ensayo 
       gh(...args);
     }
     hecho.escritos.push(ruta + (q === 'nuevo' ? ' (nuevo)' : ''));
+  }
+  for (const ruta of flujosRetirados(sj)) {
+    const t = contenido(tienda, ruta, '');
+    if (!t) continue;
+    if (!ensayo) {
+      gh('api', '-X', 'DELETE', `repos/${tienda}/contents/${ruta}`,
+         '-f', `message=ci/flujos: retira ${ruta.split('/').pop()} (semilla.json › retirados, ${etiqueta})`,
+         '-f', `sha=${t.sha}`);
+    }
+    hecho.retirados.push(ruta);
   }
   return hecho;
 }
@@ -102,10 +124,12 @@ function main() {
   for (const t of pedida.tiendas) {
     try {
       const h = entregar(c, { semilla: l.semilla, etiqueta, tienda: t.repo, ensayo });
+      const quita = h.retirados.length
+        ? ` · ${ensayo ? 'quitaría' : 'retirados'} ${h.retirados.map(x => '`' + x.split('/').pop() + '`').join(', ')}` : '';
       decir(h.escritos.length
         ? `- **${t.nombre}**: ${ensayo ? 'escribiría' : 'puestos'} ${h.escritos.map(x => '`' + x.split('/').pop() + '`').join(', ')}` +
-          (h.iguales.length ? ` · ya al día: ${h.iguales.length}` : '')
-        : `- **${t.nombre}**: ya los tenía todos al día (${h.iguales.length}).`);
+          (h.iguales.length ? ` · ya al día: ${h.iguales.length}` : '') + quita
+        : `- **${t.nombre}**: ya los tenía todos al día (${h.iguales.length})${quita}.`);
     } catch (e) {
       const txt = String(e.stderr || e.message).split('\n')[0];
       if (/HTTP 404|Not Found/i.test(txt)) { decir(`- **${t.nombre}**: no está en GitHub (404). La salto.`); continue; }

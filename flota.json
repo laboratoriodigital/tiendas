@@ -53,14 +53,6 @@
       "sitio": "https://cinnamonbeauty.laboratoriodigital-la.workers.dev"
     },
     {
-      "nombre": "prueba-panel",
-      "repo": "laboratoriodigital/prueba-panel",
-      "linea": "tienda",
-      "anillo": "fuera",
-      "_fuera": "Tienda de prueba abandonada (0.15.0). Fuera del reparto para que no tape el anillo 2 (bitácora 105). Para devolverla, un número.",
-      "sitio": "https://prueba-panel.laboratorio-digital.com"
-    },
-    {
       "nombre": "prueba1",
       "repo": "laboratoriodigital/prueba1",
       "linea": "tienda",

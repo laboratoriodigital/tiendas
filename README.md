@@ -1,21 +1,29 @@
 # `laboratoriodigital/tiendas` — el repositorio de servicio
 
 Aquí vive lo que es **del negocio de vender tiendas**, no de una tienda:
-dar de alta una tienda nueva y llevar la **flota** —todas las tiendas
-publicadas— al día. Ninguna tienda ve este repositorio, y los dos secretos
-poderosos (`ALTA_TOKEN`, `FLOTA_TOKEN`) viven solo aquí.
+dar de alta una tienda nueva, conectarla con su hoja, llevar la **flota**
+—todas las tiendas publicadas— al día y publicar el panel de administración.
+Ninguna tienda ve este repositorio (es privado), y los dos secretos poderosos
+(`ALTA_TOKEN`, `FLOTA_TOKEN`) viven solo aquí.
+
+El procedimiento completo de una tienda Panel —de la cuenta de Google a la
+entrega, publicar, actualizar y volver atrás— está en la semilla:
+`laboratoriodigital/tienda` › `docs/DESPLIEGUE.md` (el mapa) y
+`docs/RUNBOOK-TECNICO.md` (los clics y los incidentes). Este archivo describe
+lo que hay en este repositorio.
 
 ## Dos productos
 
 | | **Tienda Básica** | **Tienda Panel** |
 |---|---|---|
 | Semilla | `laboratoriodigital/organico` (3.x) | `laboratoriodigital/tienda` (0.x) |
+| Línea en `flota.json` | `organico`, modo `pull-request` | `tienda`, modo `montaje` |
 | El comercio trabaja en | su hoja de cálculo | un panel web (y su hoja, si quiere) |
 | Velocidad de gestión | rápida: la hoja es directa | más lenta: cada gestión pasa por Apps Script |
 | Gráficas | en la pestaña Tablero de la hoja; extras posibles | en el panel |
 | Precio | el de entrada | más caro, más fácil de manejar |
-| Se actualiza | por pull request, que la flota fusiona sola | sola: su montaje con la semilla |
-| Tiendas | Orgánico (semilla), Cinnamon Beauty | Laboratorio Digital (semilla); todavía sin hijas |
+| Se actualiza | por pull request, que la flota fusiona sola | sola: su `montaje` con la semilla; la flota la dispara y le entrega los flujos |
+| Tiendas en `flota.json` | Orgánico (semilla), Cinnamon Beauty | Laboratorio Digital (semilla), prueba1 |
 
 Las dos venden igual (catálogo, variantes, cupones, envíos, pasarela Bold o
 WhatsApp, rastreo). **No se mezclan**: la hoja de una no es la de la otra, y
@@ -25,57 +33,126 @@ semilla `tienda`).
 | | Qué | Dónde |
 |---|---|---|
 | Alta | Crear una tienda nueva, de cualquiera de los dos productos | Actions › **alta**, luego **conectar** |
-| Panel | La flota de un vistazo | [`panel/index.html`](panel/index.html), detrás de Cloudflare Access |
-| Estado | Qué versión tiene cada tienda y qué contesta publicada | Actions › **flota** › `estado` · [`ESTADO.md`](ESTADO.md) |
+| Estado | Qué versión tiene cada tienda y qué contesta publicada | Actions › **flota** › `estado` · [`ESTADO.md`](ESTADO.md) (generado) |
+| Panel | La flota de un vistazo | [`panel/index.html`](panel/index.html) (generado por `estado`) |
 | Actualizar | Poner al día una línea, por anillos | Actions › **flota** › `actualizar` |
+| Flujos | Entregar los `.github/workflows` de la semilla a las tiendas Panel | Actions › **flota** › `flujos` (y `actualizar`, sola) |
+| Hoja de administración | Publicar `panel.gs` en la hoja *Panel de tiendas* | Actions › **panel** |
 | Números | Ventas, pedidos y agotados de todas las tiendas | La hoja **Panel de tiendas** (`panel.gs`), aparte |
 
 ---
 
-## El alta: `alta` y `conectar`, tres campos cada uno
+## Los flujos
 
-**1. `alta`** — el nombre corto (`cafe-la-esquina`: repositorio, sitio y
-subdominio), el comercio y el producto. Comprueba que `ALTA_TOKEN` ve la
-semilla (y si no, dice qué revisar), **clona su última versión publicada**
-—no hace falta marcarla como plantilla—, la limpia de lo que es de otra tienda
-(catálogo, fotos, fichas, imagen, dominio, `release`), le pone su nombre,
-permisos, fusiones automáticas y `SEMILLA_TOKEN`, y la agrega a `flota.json`.
-**El resumen de la corrida es la lista de lo que falta**, en orden.
+Todos se disparan a mano desde Actions › *Run workflow*; solo `flota` corre
+además por horario. Todos abren su resumen con una ficha (qué es la corrida,
+sobre qué, cómo está la flota y quién la pidió) y ninguno imprime un token.
 
-**2. Google** (a mano, en la cuenta de la tienda): la hoja, el maestro,
-`A0_instalar`, la implementación y el stub. El Diagnóstico de la hoja da la URL
-y el token.
+### `alta` — tres campos
 
-**3. `conectar`** — **dónde está**: github.com/laboratoriodigital/tiendas ›
-pestaña **Actions** › en la lista de la izquierda, **conectar** › botón **Run
-workflow** a la derecha ([enlace directo](https://github.com/laboratoriodigital/tiendas/actions/workflows/conectar.yml);
-también el botón *Conectar* del panel de la flota y el Diagnóstico de la
-hoja). Aparece cuando `conectar.yml` está en `main`. Tres campos: el nombre
-corto, el *Servicio* y el *Token* que da `diagnosticoCompleto()` en el editor
-del maestro. Le pregunta al maestro su hoja y su proyecto, escribe en la hoja
-el comercio, la dirección y el repositorio, pone los cuatro secretos, le pone
-al maestro su permiso de GitHub y dispara el primer montaje.
+| Entrada | Valores |
+|---|---|
+| `nombre` | minúsculas, números y guiones, de 3 a 40 (`cafe-la-esquina`): el repositorio y el subdominio |
+| `comercio` | como lo verá el comprador |
+| `producto` | `tienda` (de fábrica) · `organico` |
+
+Secretos: `ALTA_TOKEN`; `SEMILLA_TOKEN` si existe. Qué hace, en orden:
+
+1. `node flota/pruebas.mjs` (sin red) y valida el formulario
+   (`flota/alta.mjs validar`): nombre válido, línea que exista, y que ni el
+   repositorio ni el sitio `https://<nombre>.<dominio>` estén ya en
+   `flota.json`.
+2. Comprueba que `ALTA_TOKEN` ve la semilla («ALTA_TOKEN no ve la semilla», con
+   las tres causas) y que el repositorio no existe.
+3. Busca **la última etiqueta publicada** `vX.Y.Z` de la semilla
+   (`nucleo.mjs › ultimaEtiqueta`). No hace falta marcar la semilla como
+   plantilla.
+4. **Crea el repositorio privado** y lo llena clonando esa etiqueta, limpio de
+   lo que es de otra tienda (`NO_SE_HEREDA`: `release.yml`, `Claude outputs`,
+   `tienda.json`, `ESTADO.md`, el catálogo, las fotos, las fichas, el
+   `sitemap`, la imagen para compartir, `servicio`); rehace `publicar/` desde
+   `plantilla/`; pone su `"name"` en `wrangler.jsonc` y quita las `routes` de
+   la semilla; y comprueba que cada `node montar/x.mjs` de sus flujos existe
+   (si no, se detiene: **el repositorio ya quedó creado, vacío**).
+5. Permisos de Actions (escritura, aprobar pull requests), fusión *squash*,
+   fusión automática y borrar ramas al fusionar; `SEMILLA_TOKEN` en la tienda.
+6. **El resumen es la lista de lo que falta**, en orden; la fila en
+   `flota.json` (`anillo: 2`) y un commit aquí.
+
+### `conectar` — tres campos y una casilla
+
+**Dónde está:** github.com/laboratoriodigital/tiendas › pestaña **Actions** ›
+en la lista de la izquierda, **conectar** › botón **Run workflow**
+([enlace directo](https://github.com/laboratoriodigital/tiendas/actions/workflows/conectar.yml);
+también el enlace *Conectar* del panel de la flota).
+
+| Entrada | Valores |
+|---|---|
+| `nombre` | el nombre corto del alta (se busca por el repositorio en `flota.json`) |
+| `maestro_url` | la URL `/exec` del maestro: línea *Servicio* de `A2_diagnosticoCompleto` en el editor del maestro |
+| `maestro_token` | el token `tk-…`: línea *Token* de la misma función. **El Diagnóstico del menú de la hoja no lo enseña** |
+| `forzar_permiso` | casilla, sin marcar: reemplazar el permiso de GitHub del maestro aunque el que tenga siga sirviendo |
+
+Secretos: `ALTA_TOKEN` (poner secretos, disparar el montaje), `DISPARO_TOKEN`,
+`PANEL_URL`, `PANEL_CLAVE`, `SEMILLA_TOKEN`. Qué hace (`flota/conectar.mjs`):
+le pregunta al maestro su hoja y su proyecto (`identidad`) y se planta si la
+hoja dice que es de otro repositorio; escribe en la hoja `negocio`,
+`repositorio` y `sitio_url` solo donde están vacíos (`sembrar`); comprueba que
+`DISPARO_TOKEN` ve la tienda y **solo entonces** se lo pone al maestro como
+`GITHUB_TOKEN` (por POST); registra la tienda en la hoja de administración;
+pone en la tienda `MAESTRO_URL`, `MAESTRO_TOKEN`, `HOJA_ID`, `SCRIPT_ID` y
+refresca `SEMILLA_TOKEN` (0.21.2); y dispara su primer `montaje` (`que=todo`).
 
 **A mano queda solo `CLASPRC`**, la credencial de Google de la tienda
-(`clasp login --no-localhost` con su cuenta), para publicar el maestro desde
-GitHub.
+(`clasp login --no-localhost` con su cuenta), para que la tienda publique su
+maestro —y pueda terminar una actualización que traiga uno nuevo—.
 
-**4. Cloudflare**, cuando ese montaje termine: Import a repository. Al final a
-propósito: conectado antes, publicaría lo que todavía no es esta tienda.
+**Después, Cloudflare**, cuando ese montaje termine: Import a repository. Al
+final a propósito: conectado antes, publicaría lo que todavía no es esta
+tienda.
 
-Todavía no ha corrido de punta a punta: la primera vez, míralo paso a paso.
+### `flota` — estado, actualizar, flujos
 
----
+| Entrada | De fábrica | Valores |
+|---|---|---|
+| `accion` | `estado` | `estado` · `actualizar` · `flujos` |
+| `linea` | **`organico`** | `organico` · `tienda` (las claves de `lineas`) |
+| `anillo` | `'1'` | `'0'` · `'1'` · `'2'`: hasta ese anillo, incluido |
+| `version` | vacío | la etiqueta; vacío = la última publicada. En `flujos`, **con `v`** |
+| `ensayo` | **marcada** | solo decir qué haría |
+| `tienda` | vacío | solo esa: `dueño/repositorio`, el nombre corto o el `nombre` de la fila. En `actualizar` se busca dentro del anillo pedido |
+| `sin_base` | `dejar` | `dejar` · `sobrescribir` (solo `pull-request`) |
 
-## El panel: `panel/index.html`
+Secreto: `FLOTA_TOKEN` (sin él, se niega). Comparte el grupo de concurrencia
+con `alta`. Antes de nada corre `node flota/pruebas.mjs`.
 
-Una página que escribe `flota › estado` (los lunes y cada vez que se corre),
-con la misma información que `ESTADO.md` y los botones de **Nueva tienda**,
-**Conectar** y **Actualizar**. Estática, sin JavaScript y sin nada secreto.
-Para verla en la web: Cloudflare › Import a repository › `tiendas`
-(`wrangler.jsonc` ya dice qué publicar) y **protégela con Cloudflare Access**
-(Zero Trust › Access › Applications › Self-hosted, solo tu correo): no tiene
-secretos, pero sí la lista de tus clientes.
+- **`estado`** (también cada lunes, `23 12 * * 1` = 7:23 en Colombia):
+  `flota/estado.mjs` lee la versión del `package.json` de cada repositorio, la
+  última etiqueta de cada semilla, el `catalogo.json` publicado de cada `sitio`
+  y los pull requests `semilla/*` abiertos. Escribe `ESTADO.md` y
+  `panel/index.html` y los guarda aquí. Solo lee.
+- **`actualizar`** (`flota/actualizar.mjs`): ver *Actualizar*, abajo.
+- **`flujos`** (`flota/flujos.mjs`): ver *Los flujos de las tiendas*, abajo.
+
+### `panel` — publicar `panel.gs`
+
+| Entrada | Valores |
+|---|---|
+| `version` | la etiqueta de la semilla `tienda`, **con `v`**; vacío = la última publicada |
+
+Secretos: `PANEL_SCRIPT_ID`, `PANEL_CLASPRC` (sin los dos, «Faltan los
+secretos» y no toca nada); para leer la semilla, `ALTA_TOKEN`, o
+`FLOTA_TOKEN`, o el `GITHUB_TOKEN` de la corrida. Clona la semilla en esa
+etiqueta y corre **su** `montar/publicar-maestro.mjs` con `ARCHIVO=panel.gs`
+(la misma herramienta que publica el maestro de cada tienda, no una copia):
+sube el archivo con clasp 3 y actualiza la implementación que ya existe, sobre
+la misma URL. La primera implementación de esa hoja se crea a mano, una vez.
+
+> **Defecto conocido, a hoy (sin verificar en una corrida real):** ningún paso
+> escribe `PANEL_CLASPRC` en `~/.clasprc.json`, que es donde lo busca clasp; se
+> le pasa a la herramienta como variable `CLASPRC`, que no la lee. Lo esperable
+> es «Clasp dice que NO ENCUENTRA CREDENCIALES». Hasta que se corrija,
+> `panel.gs` se pega a mano.
 
 ---
 
@@ -83,25 +160,76 @@ secretos, pero sí la lista de tus clientes.
 
 ### La lista: `flota.json`
 
-Cada línea dice su **producto**, su **semilla** y su **modo** de actualizarse.
-Cada tienda tiene un **anillo**: 0 para la de pruebas, 1 para las primeras, 2
-para el resto. «Hasta el anillo N» va en orden y **se detiene si una falla**.
-Nada secreto va en este archivo (las pruebas lo comprueban).
+Nada secreto va en este archivo —ni tokens ni URLs de maestros—, y las
+pruebas lo comprueban. Lo edita una persona, o `alta` (que agrega filas). Las
+claves que empiezan por `_` son comentarios.
+
+```jsonc
+{
+  "lineas": {
+    "tienda":   { "producto": "Tienda Panel", "descripcion": "…", "modo": "montaje",
+                  "semilla": "laboratoriodigital/tienda" },
+    "organico": { "producto": "Tienda Básica", "descripcion": "…", "modo": "pull-request",
+                  "semilla": "laboratoriodigital/organico",
+                  "propios": ["maestro.gs", "montar/", "…"] }
+  },
+  "tiendas": [
+    { "nombre": "Laboratorio Digital", "repo": "laboratoriodigital/tienda", "linea": "tienda",
+      "semilla": true, "sitio": "https://tienda.laboratorio-digital.com" },
+    { "nombre": "prueba1", "repo": "laboratoriodigital/prueba1", "linea": "tienda",
+      "anillo": 2, "sitio": "https://prueba1.laboratorio-digital.com" }
+  ],
+  "dominio": "laboratorio-digital.com"
+}
+```
+
+| Campo | Qué es |
+|---|---|
+| `lineas.<clave>.modo` | `montaje`: la tienda se actualiza sola (Tienda Panel); qué es de la semilla lo dice el `semilla.json` de la propia semilla. `pull-request`: la flota aplica la versión desde fuera (Tienda Básica) |
+| `lineas.<clave>.semilla` | el repositorio de la semilla |
+| `lineas.<clave>.propios` | solo en `pull-request`: qué archivos son de la semilla (las rutas que acaban en `/` son carpetas) |
+| `tiendas[].nombre` | el nombre del comercio (el alta pone el que se escribió en `comercio`) |
+| `tiendas[].repo` | `dueño/repositorio`. `conectar` busca la tienda por su segunda parte |
+| `tiendas[].linea` | la clave de su línea |
+| `tiendas[].semilla` | `true` en la semilla misma: sale en el estado y nunca se actualiza |
+| `tiendas[].anillo` | `0` pruebas, `1` primeras, `2` el resto (el alta pone `2`). **`"fuera"`** —o cualquier cosa que no sea un número, o no ponerlo— la deja en la lista y en el estado, pero **ningún reparto la toca**: ni `actualizar` ni `flujos` (bitácora 105). Para devolverla, un número |
+| `tiendas[].sitio` | la dirección pública: la usan `estado` (lee su `catalogo.json`), `alta` (no repetirla) y `conectar` (la escribe en `sitio_url`) |
+| `tiendas[].conserva` | opcional, solo en `pull-request`: rutas de la semilla que esa tienda conserva como suyas |
+| `dominio` | con él, el alta propone `https://<nombre>.<dominio>` |
+
+Sirve `"fuera"` para una tienda de prueba abandonada o pausada, que de otro
+modo sería la primera en fallar y dejaría sin versión a las que vienen detrás
+en su anillo. Una tienda cuyo repositorio da 404 no detiene el reparto: se
+salta y se dice al final.
 
 ### Actualizar
 
-- **Tienda Panel (`montaje`)**: la flota dispara el `montaje` de cada tienda con
-  `semilla: true` y espera. La tienda trae la versión nueva, publica el maestro,
-  rehornea, corre TODAS las baterías y publica en main; si algo falla, vuelve
-  atrás el maestro y queda como estaba. Es lo mismo que el botón *Actualizar*
-  del panel y la opción del menú de la hoja.
-- **Tienda Básica (`pull-request`)**: la flota abre el pull request con la
-  versión nueva, espera las pruebas de la tienda, lo fusiona y dispara su
-  montaje. **Excepción**: si trae `publicar/index.html`, se queda abierto
+Solo se actualiza a versiones **publicadas con `release`** (etiquetas
+`vX.Y.Z`). **De fábrica, en ensayo**: dice qué haría y no toca nada.
+
+Se eligen las tiendas de la línea, que no sean semilla, con anillo numérico y
+menor o igual al pedido (y solo la pedida, si se dio `tienda`), y se recorren
+en orden de anillo:
+
+- **Tienda Panel (`montaje`)**: por cada tienda, si su `package.json` ya está en
+  esa versión, sigue; si no, dispara su `montaje` con `semilla=true`,
+  `que=todo` y la versión, y **espera a que termine**. La tienda trae la
+  versión, publica el maestro si cambió, rehornea, corre su guardia
+  (`pruebas/tienda-viva.js`) y publica en `main`; si algo falla, vuelve atrás
+  el maestro y queda como estaba. Si el montaje falla, **la flota se detiene**
+  y dice cuáles quedaron sin tocar y cómo seguir («solo esta tienda», o
+  `"anillo": "fuera"`). Si termina bien, **le entrega los flujos**. Es lo mismo
+  que el botón *Actualizar* del panel y la opción del menú de la hoja, salvo
+  la entrega de flujos, que solo hace la flota.
+- **Tienda Básica (`pull-request`)**: la flota clona la tienda y la semilla,
+  aplica la versión nueva, abre el pull request `semilla/vX.Y.Z`, espera las
+  pruebas de la tienda, lo fusiona y dispara su montaje (con el maestro si
+  cambió). **Excepción**: si trae `publicar/index.html`, se queda abierto
   (fusionarlo antes del montaje dejaría unos minutos la tienda con el index de
   la semilla). Se acaba cuando la Básica aprenda a actualizarse sola.
 
-En las dos, la regla por archivo es la misma —las tres versiones—:
+En las dos, la regla por archivo es la misma —las tres versiones: la tienda
+hoy, la semilla nueva y la semilla de la que salió la tienda—:
 
 | La tienda… | La semilla… | Qué pasa |
 |---|---|---|
@@ -109,46 +237,81 @@ En las dos, la regla por archivo es la misma —las tres versiones—:
 | lo cambió | no lo cambió | se respeta |
 | lo cambió | también lo cambió | **no se toca** y se dice arriba |
 | no lo tiene | lo trae nuevo | se agrega |
-| — | ya no lo trae | no se borra nada |
-| (no se sabe de qué versión salió) | | **no se toca** lo distinto; se lista |
+| — | ya no lo trae | en la Panel, se borra si la versión nueva lo lista en `retirados` de su `semilla.json` (nunca `publicar/` ni `.git`); si no, y en la Básica, no se borra nada |
+| (no se sabe de qué versión salió) | | **no se toca** lo distinto; se lista (con `sin_base: sobrescribir`, en la Básica, se pisa) |
 
-Solo se actualiza a versiones **publicadas con release** (etiquetas `vX.Y.Z`).
-**De fábrica, en ensayo**: dice qué haría y no toca nada.
+### Los flujos de las tiendas (0.22.1 · bitácora 103)
+
+Una tienda no puede escribir sus propios `.github/workflows`: su push va con el
+`GITHUB_TOKEN` de Actions, que no puede nunca, y `actions/checkout` deja una
+cabecera con ese permiso que gana a cualquier token en la URL. Así que los
+entrega la flota, con `FLOTA_TOKEN` y por la API de contenidos: lee el
+`semilla.json` de la semilla en esa etiqueta, toma de `propios` los que están
+en `.github/workflows/` y escribe en cada tienda solo los que cambian. Desde
+la 0.22.3 también **quita** los de `retirados` que la tienda todavía tenga
+(nunca uno que la semilla siga entregando): la tienda no puede borrarlos.
+`actualizar` lo hace sola tras cada tienda que se actualiza bien; `flujos` lo
+hace a mano para toda la línea (sin mirar el anillo, pero saltando las
+`"fuera"`) o para una sola tienda, y es el rescate de una que se quedó con
+flujos viejos. En una línea `pull-request` no hay nada que entregar: lo dice y
+termina.
 
 ### Los secretos (solo en este repositorio)
 
-| Secreto | Para qué | Permisos (de grano fino, con vencimiento) |
+Sin valores, obviamente. Todos los tokens de GitHub, de grano fino, del mismo
+dueño que las tiendas y **con vencimiento**; y sobre **todos** los
+repositorios del dueño, no sobre una lista: una lista fija no incluye las
+tiendas que nacen después, y GitHub contesta 404 —no 403— a lo que el token no
+ve.
+
+| Secreto | Para qué | Permisos mínimos |
 |---|---|---|
-| `ALTA_TOKEN` | crear repositorios, llenarlos, ponerles secretos y disparar su montaje | **del mismo dueño de las tiendas**, sobre todos sus repositorios: *Administration*, *Secrets*, *Contents*, *Workflows*, *Actions* en escritura |
-| `FLOTA_TOKEN` | leer semillas, empujar ramas, abrir y fusionar pull requests, disparar y esperar montajes | los de la flota: *Contents*, *Pull requests*, *Workflows*, *Actions* en escritura |
-| `DISPARO_TOKEN` | `conectar` se lo pone al maestro de cada tienda como `GITHUB_TOKEN`: Publicar y Actualizar desde el panel | todos los repositorios de las tiendas: **solo** *Actions* en escritura |
-| `CLOUDFLARE_API_TOKEN` · `CLOUDFLARE_ACCOUNT_ID` | opcionales: con los dos, `flota` › estado publica el panel en Cloudflare (Worker de recursos estáticos) | lo mínimo que necesita `wrangler deploy` de una página estática: **Account › Workers Scripts: Edit** y **Account › Account Settings: Read**. Si el panel va en un dominio propio, además **Zone › Workers Routes: Edit**. Lo demás (KV, R2, Pages, Containers, CI, Observability, Tail, CF Agents) no hace falta. **Sin filtro de IP**: los runners de GitHub cambian de dirección en cada corrida. Ponle **vencimiento** y anótalo |
-| `PANEL_URL` · `PANEL_CLAVE` | opcionales: `conectar` registra la tienda en la hoja de administración | ninguno de GitHub: la URL `/exec` de esa hoja y la clave de su menú |
-| `SEMILLA_TOKEN` | el alta lo copia a cada tienda Panel para que se actualice sola con sus flujos | la semilla en lectura; las tiendas con *Contents* y *Workflows* en escritura |
-| `FLOTA_TOKEN` › *Workflows* | **flota › flujos** (y `actualizar`, sola) entrega los `.github/workflows` de la semilla a cada tienda: una tienda no puede escribir sus propios flujos (bitácora 103) | *Workflows* y *Contents* en *Read and write* sobre todos los repositorios del dueño |
+| `ALTA_TOKEN` | `alta` (crear el repositorio, llenarlo, permisos, `SEMILLA_TOKEN`) y `conectar` (secretos de la tienda, disparar su montaje). `panel` lo usa para leer la semilla | *Administration*, *Contents*, *Workflows*, *Secrets* y *Actions* en lectura y escritura |
+| `FLOTA_TOKEN` | `flota`: leer semillas y tiendas (`estado`), disparar y esperar montajes (`actualizar`), escribir `.github/workflows` en las tiendas (`flujos`, y `actualizar` tras cada tienda); en la Básica, ramas y pull requests. `panel`, si no hay `ALTA_TOKEN` | *Contents*, *Pull requests*, *Workflows* y *Actions* en lectura y escritura; *Metadata* lectura |
+| `DISPARO_TOKEN` | `conectar` se lo pone al maestro de cada tienda como `GITHUB_TOKEN`, después de comprobar que ve esa tienda: Publicar y Actualizar desde el panel y el menú | **solo** *Actions* en lectura y escritura |
+| `SEMILLA_TOKEN` | `alta` lo copia a cada tienda y `conectar` lo refresca: la tienda lo usa para leer la semilla al actualizarse (`montaje` con `semilla`) y sus etiquetas (`restaurar`). Desde la 0.22.1 ya no empuja flujos | *Contents* lectura sobre la semilla; solo hace falta si la semilla es privada |
+| `PANEL_URL` · `PANEL_CLAVE` | opcionales: `conectar` registra la tienda en la hoja de administración | ninguno de GitHub: la URL `/exec` de esa hoja y la clave de su menú › *Clave para el alta* |
 | `PANEL_SCRIPT_ID` | el flujo **panel** publica `panel.gs` en la hoja de administración | el id del proyecto: en la URL del editor, entre `/projects/` y `/edit` |
-| `PANEL_CLASPRC` | lo mismo: es la credencial de Google de la cuenta dueña de esa hoja | el contenido de `~/.clasprc.json` de `clasp login --no-localhost` |
+| `PANEL_CLASPRC` | lo mismo: la credencial de Google de la cuenta dueña de esa hoja | el contenido de `~/.clasprc.json` de `clasp login --no-localhost` |
+| `CLOUDFLARE_API_TOKEN` · `CLOUDFLARE_ACCOUNT_ID` | opcionales: con los dos, `flota` › `estado` publica `panel/` en Cloudflare (Worker de recursos estáticos, `wrangler.jsonc`) | lo mínimo que necesita `wrangler deploy` de una página estática: **Account › Workers Scripts: Edit** y **Account › Account Settings: Read**. Si el panel va en un dominio propio, además **Zone › Workers Routes: Edit**. Lo demás (KV, R2, Pages, Containers, CI, Observability, Tail, CF Agents) no hace falta. **Sin filtro de IP**: los runners de GitHub cambian de dirección en cada corrida. Ponle **vencimiento** y anótalo |
 
 > **Orgánico no tenía la etiqueta `v3.6.1`**, la versión de la que salió
 > Cinnamon. Se creó el 22-sep sobre `e5863d5`; hay que subirla con
-> `git push origin v3.6.1` desde `organico`.
+> `git push origin v3.6.1` desde `organico`. *(Sin verificar aquí si ya se
+> subió.)*
 
 ### Las pruebas
 
-`node flota/pruebas.mjs` — sin red ni token, al principio de cada corrida.
+`node flota/pruebas.mjs` — sin red ni token, al principio de `alta` y de cada
+corrida de `flota`.
 
 ---
+
+## El panel de la flota: `panel/index.html`
+
+Una página que escribe `flota › estado` (los lunes y cada vez que se corre),
+con la misma información que `ESTADO.md` y los enlaces **Nueva tienda**,
+**Conectar** y **Actualizar** (llevan a la pestaña Actions de cada flujo).
+Estática, sin JavaScript y sin nada secreto. Para verla en la web: Cloudflare ›
+Import a repository › `tiendas` (`wrangler.jsonc` ya dice qué publicar, con el
+nombre `flota-panel`), o los dos secretos de Cloudflare de arriba. Cuando se
+sirva en una dirección, **protégela con Cloudflare Access** (Zero Trust ›
+Access › Applications › Self-hosted, solo tu correo): no tiene secretos, pero sí
+la lista de tus clientes.
 
 ## La hoja de administración de tiendas (0.17.0)
 
 La hoja «Panel de tiendas» (`panel.gs` de la semilla) es el registro del
 negocio: estado, plan, precio, contacto y notas de cada tienda, con sus cifras.
 `conectar` le deja la fila sola —comercio, repositorio, sitio, producto,
-servicio y token— si este repositorio tiene `PANEL_URL` y `PANEL_CLAVE`. Lo
-que el operador escribió allá (contacto, plan, precio, notas) no se toca.
+servicio, token y anillo— si este repositorio tiene `PANEL_URL` y
+`PANEL_CLAVE`. Lo que el operador escribió allá (contacto, plan, precio, notas)
+no se toca.
 
 Para activarlo: en la hoja, menú **Panel › Clave para el alta**; Implementar ›
 Aplicación web (yo · cualquiera); y la URL `/exec` y la clave como secretos.
+Las versiones nuevas de `panel.gs` las publica el flujo **panel** (ver el
+defecto de arriba).
 
 **El portal** (0.18.0) se abre desde esa misma hoja: menú **Panel › Abrir el
 portal**. Es una pantalla con cada tienda —estado, producto, ventas del mes,
@@ -162,7 +325,7 @@ datos de su hoja se restauran desde el editor de su maestro (`A5_respaldos`,
 `A6_restaurarDatos`).
 
 `tienda-nueva.yml`, el alta de antes con sus campos viejos, ya no existe: lo
-reemplazan `alta` (tres campos) y `conectar` (tres campos).
+reemplazan `alta` y `conectar`.
 
 ---
 
@@ -172,17 +335,8 @@ reemplazan `alta` (tres campos) y `conectar` (tres campos).
    de `publicar/index.html` y hay un solo modo.
 2. **El despliegue en Cloudflare desde Actions** (`wrangler` con un token de
    Cloudflare): el alta quedaría sin ningún clic fuera de Google.
-3. **Un panel web de la flota** (detrás de Cloudflare Access): el estado y las
-   cifras en una pantalla, con los botones de alta y actualizar.
+3. **El panel web de la flota detrás de Cloudflare Access**: el estado y las
+   cifras en una dirección propia.
 4. **Tareas de valor para los comercios**: el informe mensual, campañas de
    cupones y avisos de «volvió a llegar» para todas las tiendas a la vez; las
    gráficas de la Básica como extra.
-
-### Una tienda fuera del reparto
-
-`"anillo": "fuera"` en su fila de `flota.json` —o cualquier cosa que no sea un
-número— la deja en la lista y en el estado, pero ningún reparto la toca: ni
-`actualizar` ni `flujos`. Sirve para una tienda de prueba abandonada o una
-pausada, que de otro modo sería la primera en fallar y dejaría sin versión a
-las que vienen detrás en su anillo (bitácora 105). Para devolverla, se le pone
-otra vez un número.
