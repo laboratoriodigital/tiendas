@@ -56,7 +56,8 @@
       "nombre": "prueba-panel",
       "repo": "laboratoriodigital/prueba-panel",
       "linea": "tienda",
-      "anillo": 2,
+      "anillo": "fuera",
+      "_fuera": "Tienda de prueba abandonada (0.15.0). Fuera del reparto para que no tape el anillo 2 (bitácora 105). Para devolverla, un número.",
       "sitio": "https://prueba-panel.laboratorio-digital.com"
     },
     {

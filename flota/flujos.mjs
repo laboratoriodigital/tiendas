@@ -19,7 +19,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { laPedida, ultimaEtiqueta } from './nucleo.mjs';
+import { laPedida, ultimaEtiqueta, enReparto } from './nucleo.mjs';
 
 /* Qué se entrega: lo que la semilla declara suyo dentro de `.github/workflows`.
    La lista la dice su `semilla.json`, no este archivo (patrón 2). */
@@ -92,7 +92,7 @@ function main() {
     ultimaEtiqueta(c.gh('api', `repos/${l.semilla}/tags?per_page=100`, '--jq', '.[].name').split('\n'));
   if (!etiqueta) { decir(`### La semilla ${l.semilla} no tiene ninguna versión publicada.`); process.exit(1); }
   const ensayo = /^(1|true|si|sí)$/i.test(String(process.env.ENSAYO || ''));
-  const todas = (flota.tiendas || []).filter(t => t.linea === linea && !t.semilla);
+  const todas = (flota.tiendas || []).filter(t => t.linea === linea && !t.semilla && enReparto(t));
   const pedida = laPedida(todas, process.env.TIENDA || '');
   if (pedida.error) { decir('### ' + pedida.error); process.exit(1); }
 

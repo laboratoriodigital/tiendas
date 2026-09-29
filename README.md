@@ -177,3 +177,12 @@ reemplazan `alta` (tres campos) y `conectar` (tres campos).
 4. **Tareas de valor para los comercios**: el informe mensual, campañas de
    cupones y avisos de «volvió a llegar» para todas las tiendas a la vez; las
    gráficas de la Básica como extra.
+
+### Una tienda fuera del reparto
+
+`"anillo": "fuera"` en su fila de `flota.json` —o cualquier cosa que no sea un
+número— la deja en la lista y en el estado, pero ningún reparto la toca: ni
+`actualizar` ni `flujos`. Sirve para una tienda de prueba abandonada o una
+pausada, que de otro modo sería la primera en fallar y dejaría sin versión a
+las que vienen detrás en su anillo (bitácora 105). Para devolverla, se le pone
+otra vez un número.

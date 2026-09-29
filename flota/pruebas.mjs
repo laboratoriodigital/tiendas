@@ -340,6 +340,32 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
 }
 
+/* ═══ UNA TIENDA PUEDE ESTAR FUERA DEL REPARTO (Flota · bitácora 105) ═══
+   Una tienda de prueba abandonada en el anillo 2 era la primera en la cola: su
+   montaje fallaba y, como debe ser, las siguientes no se tocaban —entre ellas
+   la que sí importaba—. `"anillo": "fuera"` la deja en la lista y fuera de
+   todo reparto. */
+{
+  const { enReparto, elegirTiendas } = await import('./nucleo.mjs');
+  const fl = { tiendas: [
+    { nombre: 'vieja', linea: 'tienda', anillo: 'fuera' },
+    { nombre: 'buena', linea: 'tienda', anillo: 2 },
+    { nombre: 'sin', linea: 'tienda' },
+    { nombre: 'uno', linea: 'tienda', anillo: '1' }] };
+  ok('UNA TIENDA «fuera» no la toca ningún reparto, y las demás sí',
+     elegirTiendas(fl, 'tienda', 2).map(t => t.nombre).join() === 'buena,uno' &&
+     enReparto({ anillo: 'fuera' }) === false && enReparto({ anillo: 0 }) === true);
+  const flota = JSON.parse(readFileSync(new URL('../flota.json', import.meta.url), 'utf8'));
+  const vieja = flota.tiendas.filter(t => t.nombre === 'prueba-panel')[0];
+  ok('  ...y `prueba-panel` (0.15.0, abandonada) está fuera: ya no tapa el anillo 2',
+     !vieja || vieja.anillo === 'fuera', vieja ? 'anillo ' + vieja.anillo : 'no está en la lista');
+  const fu = readFileSync(new URL('./flujos.mjs', import.meta.url), 'utf8');
+  ok('  ...y tampoco recibe flujos: fuera es fuera', /enReparto\(t\)/.test(fu));
+  const act = readFileSync(new URL('./actualizar.mjs', import.meta.url), 'utf8');
+  ok('  ...y cuando la flota se detiene, dice cómo seguir sin esa tienda',
+     /Quedaron sin tocar/.test(act) && /"anillo": "fuera"/.test(act) && /solo esta tienda/.test(act));
+}
+
 /* ═══ LOS FLUJOS DE UNA TIENDA LOS ENTREGA LA FLOTA (0.22.1 · bitácora 103) ═══
    Una tienda no puede escribir sus propios `.github/workflows`: su push va con
    el permiso de Actions —`actions/checkout` deja una cabecera que gana a

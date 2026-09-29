@@ -227,6 +227,15 @@ function porMontaje(tiendas, nueva, semillaDeLaLinea) {
     try { gh('run', 'watch', String(corrida.databaseId), '--repo', t.repo, '--exit-status', '--interval', '30'); } catch (e) { bien = false; }
     if (!bien) {
       decir(`- **${t.nombre}** (${desde || '?'} → ${nueva}): ✗ su montaje falló (${corrida.url}). La tienda quedó como estaba —el montaje vuelve atrás solo—. **Las siguientes no se tocan.**`);
+      /* Flota · Y CÓMO SEGUIR (bitácora 105). Detenerse es lo correcto: para
+         eso son los anillos. Pero quien lo lee tiene que saber qué hacer si esa
+         tienda no importa, sin ir a buscarlo a la documentación. */
+      const siguientes = orden.slice(orden.indexOf(t) + 1).map(x => '`' + x.nombre + '`');
+      if (siguientes.length) {
+        decir(`\n  Quedaron sin tocar: ${siguientes.join(', ')}. Si **${t.nombre}** no importa ahora, dos caminos: ` +
+              `correr esto otra vez con **solo esta tienda** = el nombre de la que sí, o sacarla del reparto ` +
+              `en \`flota.json\` con \`"anillo": "fuera"\` —sigue en la lista y en el estado, pero ningún reparto la toca—.`);
+      }
       process.exit(1);
     }
     decir(`- **${t.nombre}** (${desde || '?'} → ${nueva}): ✓ actualizada (${corrida.url}).`);

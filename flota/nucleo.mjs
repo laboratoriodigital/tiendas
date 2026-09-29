@@ -30,10 +30,22 @@
 
 /* ¿Qué tiendas toca esta corrida? Las de la línea, HASTA el anillo pedido
    (el 1 incluye al 0), y nunca la semilla misma: la semilla ya es la versión. */
+/* Flota · UNA TIENDA PUEDE ESTAR FUERA DEL REPARTO (bitácora 105).
+   Una tienda de prueba abandonada en el anillo 2 —`prueba-panel`, en la 0.15.0—
+   era la primera que la flota intentaba actualizar; su montaje fallaba y, como
+   debe ser, «las siguientes no se tocan»: la tienda que sí importaba nunca
+   recibía la versión. Borrarla de la lista pierde la historia; dejarla, tapa el
+   reparto. Así que el anillo admite `"fuera"` —o cualquier cosa que no sea un
+   número—: la tienda sigue en la lista, sale en el estado, y ningún reparto la
+   toca hasta que alguien le devuelva un anillo. */
+export function enReparto(t) {
+  return /^\d+$/.test(String(t.anillo === undefined || t.anillo === null ? '' : t.anillo).trim());
+}
+
 export function elegirTiendas(flota, linea, anillo) {
   const hasta = Number(anillo);
   return (flota.tiendas || []).filter(t =>
-    t.linea === linea && !t.semilla && Number(t.anillo) <= hasta);
+    t.linea === linea && !t.semilla && enReparto(t) && Number(t.anillo) <= hasta);
 }
 
 /* 0.20.1 · «SOLO ESTA TIENDA», COMO SE ESCRIBA (bitácora 87). El campo pedía
