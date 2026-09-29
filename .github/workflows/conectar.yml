@@ -113,15 +113,29 @@ jobs:
           TK: ${{ inputs.maestro_token }}
           HOJA: ${{ steps.tienda.outputs.hoja_id }}
           SCRIPT: ${{ steps.tienda.outputs.script_id }}
+          SEMILLA_TOKEN: ${{ secrets.SEMILLA_TOKEN }}
         run: |
           set -e
           printf '%s' "$URL"    | gh secret set MAESTRO_URL   -R "$REPO"
           printf '%s' "$TK"     | gh secret set MAESTRO_TOKEN -R "$REPO"
           printf '%s' "$HOJA"   | gh secret set HOJA_ID       -R "$REPO"
           printf '%s' "$SCRIPT" | gh secret set SCRIPT_ID     -R "$REPO"
+          # 0.21.2 · TAMBIÉN EL DE LA SEMILLA, Y CADA VEZ (bitácora 101). `alta`
+          # se lo copia a la tienda EL DÍA QUE NACE y nadie lo vuelve a tocar: el
+          # día que ese token se rehace —porque venció o porque no alcanzaba a las
+          # tiendas nuevas—, cada tienda se queda con el valor viejo y sus
+          # actualizaciones dejan de poder traer flujos, sin que nada lo diga.
+          # `conectar` es el sitio donde se ponen los permisos de una tienda, así
+          # que aquí se refresca: correrlo otra vez vuelve a ser la respuesta.
+          refresco="no se tocó (no hay \`SEMILLA_TOKEN\` en tiendas)"
+          if [ -n "$SEMILLA_TOKEN" ]; then
+            printf '%s' "$SEMILLA_TOKEN" | gh secret set SEMILLA_TOKEN -R "$REPO"
+            refresco="puesto al día con el de \`tiendas\`"
+          fi
           gh workflow run montaje.yml -R "$REPO" -f que=todo
           {
             echo ""
             echo "Secretos puestos (\`MAESTRO_URL\`, \`MAESTRO_TOKEN\`, \`HOJA_ID\`, \`SCRIPT_ID\`) y **primer montaje** disparado."
+            echo "\`SEMILLA_TOKEN\` de la tienda: $refresco."
             echo "Cuando termine en verde, conecta Cloudflare (paso 3 de la lista del alta)."
           } >> "$GITHUB_STEP_SUMMARY"

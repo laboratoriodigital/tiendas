@@ -340,6 +340,22 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
 }
 
+/* ═══ EL PERMISO DE LA SEMILLA SE REFRESCA EN CADA CONEXIÓN (0.21.2 · bit. 101) ═══
+   `alta` copia `SEMILLA_TOKEN` a la tienda el día que nace y nadie lo volvía a
+   tocar. El día que ese token se rehace, cada tienda se queda con el valor viejo
+   y sus actualizaciones dejan de poder traer flujos —el push se rechaza entero—
+   sin que nada lo diga. `conectar` es donde se ponen los permisos de una tienda:
+   aquí se pone también este, así que volver a correrlo vuelve a ser la
+   respuesta. */
+{
+  const y = readFileSync(new URL('../.github/workflows/conectar.yml', import.meta.url), 'utf8');
+  ok('CONECTAR refresca el `SEMILLA_TOKEN` de la tienda, no solo los cuatro del maestro',
+     /gh secret set SEMILLA_TOKEN -R "\$REPO"/.test(y) &&
+     /if \[ -n "\$SEMILLA_TOKEN" \]/.test(y));
+  ok('  ...y dice en el resumen si lo puso o por qué no',
+     /SEMILLA_TOKEN\\` de la tienda: \$refresco/.test(y) && /no hay/.test(y));
+}
+
 /* ═══ UNA TIENDA QUE YA NO EXISTE NO PARA A LA FLOTA (0.21.1 · bitácora 100) ═══
    `flota.json` lo edita una persona: una tienda de prueba borrada en GitHub se
    queda en la lista y la actualización se detenía en ella —«no pude leer su
