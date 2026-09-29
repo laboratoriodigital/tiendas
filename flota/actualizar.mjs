@@ -39,6 +39,7 @@
    tiendas —contenido, flujos y pull requests—. El token no se imprime nunca.
    ═══════════════════════════════════════════════════════════════════════════ */
 import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { readFileSync, mkdtempSync, existsSync, appendFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -167,14 +168,46 @@ function main() {
   if (fallos) process.exit(1);
 }
 
+/* 0.21.1 · UNA TIENDA QUE YA NO EXISTE NO PARA A LA FLOTA (bitácora 100).
+   `flota.json` lo edita una persona, así que una tienda de prueba borrada en
+   GitHub se queda en la lista. La actualización se detenía en ella —«no pude
+   leer su versión. Me detengo aquí»— y las demás no recibían nada: una lista
+   vieja bloqueaba el reparto de una versión que estaba bien.
+
+   Una tienda que NO ESTÁ no es un fallo de la versión que se reparte: es un
+   dato viejo. Se dice, se salta, y al final se recuerda qué hay que arreglar.
+   Lo que sí sigue deteniendo la flota es una tienda que está y falla: para eso
+   son los anillos. */
+export function esQueNoExiste(e) {
+  const t = String((e && (e.stderr || e.message)) || e || '');
+  return /HTTP 404|Not Found|404: Not Found/i.test(t);
+}
+
+export function textoDeLasQueNoEstan(nombres) {
+  if (!nombres.length) return '';
+  return '\n**Ojo: ' + (nombres.length === 1 ? 'una tienda de la lista ya no está' :
+         nombres.length + ' tiendas de la lista ya no están') + ' en GitHub** (' +
+         nombres.map(n => '`' + n + '`').join(', ') + '). No se las saltó por un fallo: ' +
+         'GitHub contesta 404, que es «no existe» o «este permiso no la incluye». ' +
+         'Quítalas de `flota.json` —o amplía el permiso— para que dejen de aparecer.';
+}
+
 /* ── Modo `montaje`: la tienda se actualiza sola; la flota la dispara y espera ── */
 function porMontaje(tiendas, nueva) {
   const gh = (...a) => execFileSync('gh', a, { env: Object.assign({}, process.env, { GH_TOKEN: TOKEN }), stdio: ['ignore', 'pipe', 'pipe'] }).toString().trim();
   const orden = [...tiendas].sort((a, b) => Number(a.anillo) - Number(b.anillo));
+  const noEstan = [];
   for (const t of orden) {
     let desde = '';
     try { desde = JSON.parse(Buffer.from(JSON.parse(gh('api', `repos/${t.repo}/contents/package.json`)).content, 'base64').toString()).version || ''; }
-    catch (e) { if (!ENSAYO) { decir(`- **${t.nombre}**: no pude leer su versión — ${tapar(e).split('\n')[0]}. **Me detengo** aquí.`); process.exit(1); } }
+    catch (e) {
+      if (esQueNoExiste(e)) {
+        noEstan.push(t.nombre);
+        decir(`- **${t.nombre}**: no está en GitHub (404). La salto y sigo con las demás.`);
+        continue;
+      }
+      if (!ENSAYO) { decir(`- **${t.nombre}**: no pude leer su versión — ${tapar(e).split('\n')[0]}. **Me detengo** aquí.`); process.exit(1); }
+    }
     if (version(desde) && comparar(desde, nueva) >= 0) { decir(`- **${t.nombre}** (anillo ${t.anillo}): ya está en ${desde}.`); continue; }
     if (ENSAYO) { decir(`- **${t.nombre}** (anillo ${t.anillo}, ${desde || '?'} → ${nueva}): dispararía su **montaje** con la semilla.`); continue; }
     const antes = Date.now();
@@ -197,6 +230,19 @@ function porMontaje(tiendas, nueva) {
     }
     decir(`- **${t.nombre}** (${desde || '?'} → ${nueva}): ✓ actualizada (${corrida.url}).`);
   }
+  /* Lo que hay que arreglar, al final y una sola vez: si se dijera tienda por
+     tienda, en una flota con tres borradas serían tres avisos iguales. */
+  if (noEstan.length) decir(textoDeLasQueNoEstan(noEstan));
+  /* Y si NINGUNA de las que se pidió existe, la corrida no hizo nada: eso sí es
+     rojo, porque alguien pidió repartir una versión y no se repartió a nadie. */
+  if (noEstan.length === orden.length) {
+    decir('\n**No se actualizó ninguna tienda**: todas las de esta línea y este anillo están en esa lista.');
+    process.exit(1);
+  }
 }
 
-main();
+/* 0.21.1 · SE EJECUTA CUANDO SE LANZA, NO CUANDO SE IMPORTA. Llamarlo suelto
+   convertía un `import` en una corrida: la batería que quería comprobar una
+   función de aquí arrancaba la actualización de la flota entera y moría por
+   falta de FLOTA_TOKEN. Es el mismo remate que llevan las demás herramientas. */
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

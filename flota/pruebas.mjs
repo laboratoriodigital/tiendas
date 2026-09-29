@@ -340,6 +340,53 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
 }
 
+/* ═══ UNA TIENDA QUE YA NO EXISTE NO PARA A LA FLOTA (0.21.1 · bitácora 100) ═══
+   `flota.json` lo edita una persona: una tienda de prueba borrada en GitHub se
+   queda en la lista y la actualización se detenía en ella —«no pude leer su
+   versión. Me detengo aquí»—, así que una lista vieja bloqueaba el reparto de
+   una versión que estaba bien. */
+{
+  const { esQueNoExiste, textoDeLasQueNoEstan } = await import('./actualizar.mjs');
+  ok('UN 404 se distingue de un fallo de verdad',
+     esQueNoExiste(new Error('gh: Not Found (HTTP 404)')) === true &&
+     esQueNoExiste({ stderr: 'HTTP 404: Not Found' }) === true &&
+     esQueNoExiste(new Error('HTTP 500: server error')) === false &&
+     esQueNoExiste(new Error('bad credentials (401)')) === false);
+  ok('  ...y lo que se dice al final nombra las que hay que quitar de flota.json',
+     /prueba-panel/.test(textoDeLasQueNoEstan(['prueba-panel'])) &&
+     /flota\.json/.test(textoDeLasQueNoEstan(['prueba-panel'])) &&
+     textoDeLasQueNoEstan([]) === '');
+
+  const fuente = readFileSync(new URL('./actualizar.mjs', import.meta.url), 'utf8');
+  const porMontaje = fuente.slice(fuente.indexOf('function porMontaje'));
+  ok('  ...y la que no está se SALTA, no detiene a las demás',
+     /esQueNoExiste\(e\)/.test(porMontaje) && /noEstan\.push/.test(porMontaje) &&
+     porMontaje.indexOf('noEstan.push') < porMontaje.indexOf('Me detengo'),
+     'lo que sí detiene a la flota es una tienda que está y falla: para eso son los anillos');
+  ok('  ...pero si NO EXISTE NINGUNA, la corrida es roja: no se repartió nada',
+     /noEstan\.length === orden\.length/.test(porMontaje) && /No se actualizó ninguna tienda/.test(porMontaje));
+}
+
+/* ═══ EL PANEL DE LA FLOTA SE PUBLICA SOLO (0.21.1 · bitácora 100) ═══
+   Era el último paso que seguía siendo copiar y pegar: `panel.gs` vive en la
+   semilla y corre en la hoja de administración. El flujo nuevo usa LA MISMA
+   herramienta de la semilla que publica el maestro de cada tienda; una copia
+   suya aquí se separaría de la otra el día que una cambie (patrón 2). */
+{
+  const y = readFileSync(new URL('../.github/workflows/panel.yml', import.meta.url), 'utf8');
+  ok('EL PANEL se publica con la herramienta de la semilla, no con una copia',
+     /ARCHIVO: panel\.gs/.test(y) && /node montar\/publicar-maestro\.mjs/.test(y) &&
+     /git clone/.test(y) && /\$\{SEMILLA\}\.git/.test(y));
+  ok('  ...y la versión se decide con la misma regla que el alta',
+     /ultimaEtiqueta/.test(y),
+     'dos maneras de entender «la última» se contradicen el día que una cambia');
+  ok('  ...y sin los dos secretos lo dice y no toca nada',
+     /PANEL_SCRIPT_ID/.test(y) && /PANEL_CLASPRC/.test(y) && /Faltan los secretos/.test(y));
+  ok('  ...y la credencial de Google no se imprime en ninguna parte',
+     !/echo[^\n]*PANEL_CLASPRC/.test(y),
+     'un resumen es una página web: lo que se escribe ahí queda escrito');
+}
+
 /* ═══ EL PERMISO SE COMPRUEBA ANTES DE SEMBRARLO (0.20.8 · bitácora 96) ═══
    `conectar` sembraba el `DISPARO_TOKEN` en el maestro y DESPUÉS preguntaba si
    ese token veía la tienda. Desde la 0.20.2 el maestro reemplaza el permiso que

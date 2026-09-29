@@ -1,0 +1,172 @@
+# PUBLICAR EL PANEL DE LA FLOTA — el Apps Script de la hoja de administración.
+#
+# EL ÚLTIMO PASO QUE SEGUÍA SIENDO COPIAR Y PEGAR. `panel.gs` vive en la semilla
+# y corre en la hoja «Panel de tiendas»: cada versión nueva había que abrirla,
+# copiarla y pegarla a mano en Extensiones › Apps Script. Es el mismo trabajo que
+# `montaje` hace con el maestro de cada tienda —clasp push y actualizar la
+# implementación—, así que lo hace LA MISMA HERRAMIENTA de la semilla
+# (`montar/publicar-maestro.mjs` con `ARCHIVO=panel.gs`), no una copia suya aquí:
+# dos copias de lo mismo se separan el día que una cambia (patrón 2).
+#
+# ═══ SECRETOS (solo en este repositorio) ═══
+#   PANEL_SCRIPT_ID  el id del proyecto de la hoja de administración: en la URL
+#                    del editor, entre /projects/ y /edit. (Extensiones › Apps
+#                    Script › Configuración del proyecto.)
+#   PANEL_CLASPRC    el contenido de ~/.clasprc.json de `clasp login
+#                    --no-localhost` hecho con la cuenta DUEÑA de esa hoja. Es
+#                    una credencial de Google: solo vive aquí, y este
+#                    repositorio es privado.
+#
+# La primera implementación de esa web app hay que crearla a mano una vez
+# (Implementar › Nueva implementación › Aplicación web). A partir de ahí, este
+# flujo la actualiza: la URL no cambia.
+name: panel
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Qué versión de la semilla traer (vacío = la última publicada)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: panel
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # ── LA FICHA DE LA CORRIDA (0.20.4 · bitácora 91) ─────────────────────
+      # La misma de todos los flujos: qué es esto, sobre qué, cómo está antes de
+      # tocar nada y qué se pidió. La credencial no se nombra más que para decir
+      # si está.
+      - name: Qué es esta corrida
+        env:
+          PANEL_SCRIPT_ID: ${{ secrets.PANEL_SCRIPT_ID }}
+          PANEL_CLASPRC: ${{ secrets.PANEL_CLASPRC }}
+        run: |
+          semilla=$(node -p "require('./flota.json').lineas.tienda.semilla")
+          cuantas=$(node -p "require('./flota.json').tiendas.length")
+          tiene=$([ -n "$PANEL_SCRIPT_ID" ] && [ -n "$PANEL_CLASPRC" ] && echo "sí" || echo "**no**")
+          {
+            echo "## Publicar el panel de la flota"
+            echo ""
+            echo "Sube \`panel.gs\` de la semilla al Apps Script de la hoja de administración y"
+            echo "actualiza su implementación, que es lo que hasta ahora se pegaba a mano. No toca"
+            echo "ninguna tienda: el panel solo las mira."
+            echo ""
+            echo "|  |  |"
+            echo "|---|---|"
+            echo "| De dónde sale | \`$semilla\` · versión ${{ inputs.version }}${{ inputs.version == '' && '(la última publicada)' || '' }} |"
+            echo "| La flota hoy | $cuantas tienda(s) en \`flota.json\` |"
+            echo "| Credenciales del panel | $tiene |"
+            echo "| Lo pidió | $GITHUB_ACTOR |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: ¿Hay con qué?
+        env:
+          PANEL_SCRIPT_ID: ${{ secrets.PANEL_SCRIPT_ID }}
+          PANEL_CLASPRC: ${{ secrets.PANEL_CLASPRC }}
+        run: |
+          falta=""
+          [ -z "$PANEL_SCRIPT_ID" ] && falta="$falta \`PANEL_SCRIPT_ID\`"
+          [ -z "$PANEL_CLASPRC" ]   && falta="$falta \`PANEL_CLASPRC\`"
+          if [ -n "$falta" ]; then
+            {
+              echo ""
+              echo "### Faltan los secretos:$falta"
+              echo ""
+              echo "Están explicados en el encabezado de \`.github/workflows/panel.yml\`:"
+              echo "el id del proyecto sale de la URL del editor de la hoja de administración,"
+              echo "y la credencial de \`clasp login --no-localhost\` con la cuenta dueña de esa hoja."
+              echo "Mientras tanto, el panel se sigue pegando a mano y no pasa nada más."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      # La versión se decide con la MISMA regla que el alta y la flota
+      # (`flota/nucleo.mjs › ultimaEtiqueta`): una tienda y el panel no pueden
+      # entender «la última» de dos maneras distintas.
+      - name: Qué versión de la semilla
+        id: version
+        env:
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN || secrets.FLOTA_TOKEN || github.token }}
+        run: |
+          semilla=$(node -p "require('./flota.json').lineas.tienda.semilla")
+          pedida="${{ inputs.version }}"
+          if [ -n "$pedida" ]; then
+            etiqueta="$pedida"
+          else
+            etiqueta=$(gh api "repos/$semilla/tags?per_page=100" --jq '.[].name' | \
+              node -e 'import("./flota/nucleo.mjs").then(m => { const t = require("fs").readFileSync(0, "utf8").split("\n"); process.stdout.write(m.ultimaEtiqueta(t)); })')
+          fi
+          if [ -z "$etiqueta" ]; then
+            echo "### La semilla no tiene ninguna versión publicada. Corre su **release** primero." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "semilla=$semilla" >> "$GITHUB_OUTPUT"
+          echo "etiqueta=$etiqueta" >> "$GITHUB_OUTPUT"
+
+      - name: Traer panel.gs de la semilla
+        env:
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN || secrets.FLOTA_TOKEN || github.token }}
+          SEMILLA: ${{ steps.version.outputs.semilla }}
+          ETIQUETA: ${{ steps.version.outputs.etiqueta }}
+        run: |
+          git clone --quiet --depth 1 --branch "$ETIQUETA" \
+            "https://x-access-token:${GH_TOKEN}@github.com/${SEMILLA}.git" semilla
+          test -f semilla/panel.gs
+          test -f semilla/montar/publicar-maestro.mjs
+
+      - name: clasp
+        run: npm i -g @google/clasp@3
+
+      # La herramienta es la de la semilla, tal cual: lo único que cambia es qué
+      # archivo sube y a qué proyecto.
+      - name: Publicar panel.gs
+        working-directory: semilla
+        env:
+          ARCHIVO: panel.gs
+          SCRIPT_ID: ${{ secrets.PANEL_SCRIPT_ID }}
+          CLASPRC: ${{ secrets.PANEL_CLASPRC }}
+        run: |
+          set -o pipefail
+          node montar/publicar-maestro.mjs 2>&1 | tee /tmp/panel.txt
+          {
+            echo "<details><summary>Lo que dijo clasp</summary>"
+            echo ""
+            echo '```'
+            cat /tmp/panel.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cómo quedó
+        if: always()
+        env:
+          ETIQUETA: ${{ steps.version.outputs.etiqueta }}
+        run: |
+          {
+            echo ""
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "### El panel queda en \`$ETIQUETA\`"
+              echo ""
+              echo "La URL de la hoja de administración no cambió. Recarga el portal y mira el pie,"
+              echo "que dice la versión del panel."
+            else
+              echo "### El panel sigue como estaba"
+              echo ""
+              echo "No se subió nada: la hoja de administración conserva el \`panel.gs\` que tenía."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
