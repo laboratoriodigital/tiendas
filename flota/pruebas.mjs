@@ -2,7 +2,7 @@
  *   node flota/pruebas.mjs
  * Corren en cada corrida del flujo `flota` ANTES de tocar nada: una regla de
  * actualizar rota no llega a abrir un pull request. */
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { elegirTiendas, esPropio, decidir, ultimaEtiqueta, comparar, atrasada, cuerpoDelPR, tablaEstado } from './nucleo.mjs';
@@ -338,6 +338,54 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      (h.match(/workflows\/restaurar\.yml/g) || []).length >= 2);
   ok('  ...y lleva a las acciones: nueva tienda, conectar, actualizar',
      /actions\/workflows\/alta\.yml/.test(h) && /actions\/workflows\/conectar\.yml/.test(h) && /actions\/workflows\/flota\.yml/.test(h) && /noindex/.test(h));
+}
+
+/* ═══ EL RESUMEN DE CADA FLUJO (0.20.4 · bitácora 91) ═══
+   La misma regla que vigila la semilla en `pruebas/montaje.js`, aquí para los
+   tres flujos de servicio: el resumen abre con una ficha —qué es esta corrida,
+   sobre qué, cómo está la flota antes de tocar nada, qué se pidió y quién lo
+   pidió— y nada se dice dos veces. Está escrita en los dos repositorios porque
+   ninguno puede leer los archivos del otro; cuando eso pasa, patrón 2 pide que
+   las dos copias se comprueben por separado y digan lo mismo. */
+{
+  const dir = new URL('../.github/workflows/', import.meta.url);
+  const nombres = readdirSync(dir).filter(f => /\.ya?ml$/.test(f));
+  const flujos = nombres.map(f => ({ f, t: readFileSync(new URL(f, dir), 'utf8') }));
+  const pasos = t => t.split(/\n      - (?=name:|uses:)/).slice(1)
+    .map(p => ({ nombre: (p.match(/^name: (.+)/) || ['', ''])[1].trim(), t: p }));
+
+  const sinFicha = flujos.filter(({ t }) => {
+    const p = pasos(t).filter(x => /GITHUB_STEP_SUMMARY/.test(x.t))[0];
+    return !p || p.nombre !== 'Qué es esta corrida';
+  });
+  ok('LA FICHA es lo PRIMERO que cada flujo escribe en el resumen',
+     nombres.length >= 3 && sinFicha.length === 0,
+     sinFicha.map(x => x.f).join(', ') || nombres.join(', '));
+
+  const floja = flujos.filter(({ t }) => {
+    const p = pasos(t).filter(x => x.nombre === 'Qué es esta corrida')[0];
+    return !p || !(/echo "## /.test(p.t) && /flota\.json/.test(p.t) && /GITHUB_ACTOR/.test(p.t));
+  });
+  ok('  ...y dice qué es, cómo está la flota hoy y quién lo pidió',
+     floja.length === 0, floja.map(x => x.f).join(', ') || 'las tres fichas completas');
+
+  const repes = [];
+  flujos.forEach(({ f, t }) => {
+    const titulos = (t.match(/echo "#{2,4} [^"]+"/g) || []).map(x => x.replace(/^echo "#+ |"$/g, ''));
+    const cuenta = {};
+    titulos.forEach(x => { cuenta[x] = (cuenta[x] || 0) + 1; });
+    Object.keys(cuenta).filter(k => cuenta[k] > 1).forEach(k => repes.push(f + ' › ' + k));
+  });
+  ok('  ...y ningún encabezado se repite dentro del mismo flujo',
+     repes.length === 0, repes.join(' · ') || 'sin repeticiones');
+
+  /* Y EL TOKEN DE LA TIENDA NO SE ESCRIBE EN NINGÚN RESUMEN: `conectar` lo
+     recibe por el formulario, lo enmascara y solo dice que llegó. */
+  const con = flujos.filter(x => x.f === 'conectar.yml')[0].t;
+  ok('  ...y la ficha de `conectar` no imprime el token, solo dice que llegó',
+     /add-mask/.test(con) && !/echo[^\n]*inputs\.maestro_token/.test(con) &&
+     /\(enmascarado\)/.test(con),
+     'un resumen es una página web: lo que se escribe ahí queda escrito');
 }
 
 console.log(T.join('\n'));

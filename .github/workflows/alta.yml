@@ -57,6 +57,27 @@ jobs:
         with:
           node-version: 22
 
+      # ── LA FICHA DE LA CORRIDA (0.20.4 · bitácora 91) ─────────────────────
+      # La misma de todos los flujos, aquí y en la semilla: qué es esto, sobre
+      # qué, cómo está la flota antes de tocar nada y qué se pidió. Una vez,
+      # arriba, y ningún paso de abajo lo repite.
+      - name: Qué es esta corrida
+        run: |
+          cuantas=$(node -p "require('./flota.json').tiendas.length")
+          {
+            echo "## Alta de ${{ inputs.comercio }}"
+            echo ""
+            echo "Crea el repositorio **privado** de una tienda nueva y lo llena clonando la última"
+            echo "versión publicada de su semilla. Todavía no la conecta con ninguna hoja: eso es el"
+            echo "segundo paso, el flujo \`conectar\`."
+            echo ""
+            echo "|  |  |"
+            echo "|---|---|"
+            echo "| Se va a crear | \`${{ inputs.nombre }}\` · línea **${{ inputs.producto }}** |"
+            echo "| La flota hoy | $cuantas tienda(s) en \`flota.json\` |"
+            echo "| Lo pidió | $GITHUB_ACTOR |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Las pruebas de la flota (sin red)
         run: node flota/pruebas.mjs
 

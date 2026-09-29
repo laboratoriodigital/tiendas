@@ -65,6 +65,34 @@ jobs:
         with:
           node-version: 22
 
+      # ── LA FICHA DE LA CORRIDA (0.20.4 · bitácora 91) ─────────────────────
+      # La misma de todos los flujos, aquí y en la semilla: qué es esto, sobre
+      # qué, cómo está la flota antes de tocar nada y qué se pidió. Una vez,
+      # arriba, y ningún paso de abajo lo repite.
+      # EL TOKEN NO SE ESCRIBE NI AQUÍ NI EN NINGÚN RESUMEN: se enmascara en el
+      # primer paso y lo único que se dice es que llegó.
+      - name: Qué es esta corrida
+        run: |
+          fila=$(NOMBRE='${{ inputs.nombre }}' node -e "
+            const f = require('./flota.json');
+            const t = f.tiendas.filter(x => x.nombre === process.env.NOMBRE || (x.repositorio||'').endsWith('/' + process.env.NOMBRE))[0];
+            process.stdout.write(t ? '\`' + (t.repositorio || t.nombre) + '\`, ' + (t.comercio || '') + ', anillo ' + (t.anillo === undefined ? 'sin asignar' : t.anillo)
+                                   : 'no está en flota.json todavía');")
+          {
+            echo "## Conectar ${{ inputs.nombre }} con su hoja"
+            echo ""
+            echo "Le pregunta al maestro por su hoja y su proyecto, los escribe en la hoja sin pisar"
+            echo "lo que el comercio ya puso, pone los secretos en el repositorio de la tienda y"
+            echo "dispara su primer montaje."
+            echo ""
+            echo "|  |  |"
+            echo "|---|---|"
+            echo "| La tienda | $fila |"
+            echo "| Se recibió | la URL del servicio y su token (enmascarado) |"
+            echo "| Permiso de GitHub | ${{ inputs.forzar_permiso == true && 'se reemplaza aunque el guardado sirva' || 'se reemplaza solo si el guardado ya no sirve' }} |"
+            echo "| Lo pidió | $GITHUB_ACTOR |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Preguntarle al maestro y escribir en la hoja
         id: tienda
         env:

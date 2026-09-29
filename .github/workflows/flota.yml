@@ -91,6 +91,43 @@ jobs:
         with:
           node-version: 22
 
+      # ── LA FICHA DE LA CORRIDA (0.20.4 · bitácora 91) ─────────────────────
+      # La misma de todos los flujos, aquí y en la semilla: qué es esto, sobre
+      # qué, cómo está la flota antes de tocar nada y qué se pidió. Una vez,
+      # arriba, y ningún paso de abajo lo repite.
+      - name: Qué es esta corrida
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ] || [ "${{ inputs.accion }}" = "estado" ]; then
+            titulo="El estado de la flota"
+            que="Mira cada tienda: qué versión tiene el repositorio, cuál es la última de su semilla, qué"
+            que2="contesta la tienda publicada y si tiene una actualización esperando. **No actualiza nada.**"
+            pedido="mirar${{ github.event_name == 'schedule' && ' (la revisión de los lunes)' || '' }}"
+          else
+            titulo="Actualizar la línea ${{ inputs.linea }}, hasta el anillo ${{ inputs.anillo }}"
+            que="Pone al día las tiendas de esa línea por anillos —0 pruebas, 1 primeras, 2 todas— y se"
+            que2="detiene en cuanto una falla, para que un fallo no se reparta por la flota entera."
+            pedido="${{ inputs.ensayo == true && '**ensayo**: dice qué haría y no toca nada' || '**de verdad**' }}"
+            pedido="$pedido · versión ${{ inputs.version }}${{ inputs.version == '' && '(la última publicada)' || '' }}"
+            [ -n "${{ inputs.tienda }}" ] && pedido="$pedido · solo \`${{ inputs.tienda }}\`"
+          fi
+          cuantas=$(node -p "require('./flota.json').tiendas.length")
+          anillos=$(node -p "
+            const t = require('./flota.json').tiendas, c = {};
+            t.forEach(x => { const a = x.anillo === undefined || x.anillo === '' ? 'sin anillo' : 'anillo ' + x.anillo; c[a] = (c[a] || 0) + 1; });
+            Object.keys(c).sort().map(k => c[k] + ' en ' + k).join(', ')")
+          {
+            echo "## $titulo"
+            echo ""
+            echo "$que"
+            echo "$que2"
+            echo ""
+            echo "|  |  |"
+            echo "|---|---|"
+            echo "| La flota hoy | $cuantas tienda(s): $anillos |"
+            echo "| Se pidió | $pedido |"
+            echo "| Lo disparó | $GITHUB_ACTOR · \`$GITHUB_EVENT_NAME\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       # Antes de tocar nada: una regla de actualizar rota no llega a abrir un
       # pull request en ninguna tienda.
       - name: Las pruebas de la flota (sin red)
