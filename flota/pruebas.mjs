@@ -609,6 +609,15 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      'un resumen es una página web: lo que se escribe ahí queda escrito');
 }
 
+/* 1.0.0 · NINGÚN TOKEN EN UNA DIRECCIÓN (ROADMAP 5.7 de la semilla). */
+{
+  const fuente = readFileSync(new URL('./conectar.mjs', import.meta.url), 'utf8');
+  const pedir = (fuente.match(/async function pedir\([\s\S]*?\n}\n/) || [''])[0];
+  ok('`conectar` le habla al maestro con el token en el CUERPO, no en la dirección',
+     /method: 'POST'/.test(pedir) && /body: JSON\.stringify/.test(pedir) &&
+     !/URLSearchParams/.test(pedir) && !/'\?'/.test(pedir), pedir.slice(0, 90));
+}
+
 console.log(T.join('\n'));
 console.log('\nResultado: ' + T.filter(x => x.startsWith('  OK')).length + '/' + T.length);
 process.exit(T.every(x => x.startsWith('  OK')) ? 0 : 1);

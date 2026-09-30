@@ -157,9 +157,13 @@ async function avisarAlPanel(panelUrl, cuerpo) {
   try { return JSON.parse(await r.text()); } catch { return { ok: false, error: 'respuesta que no es JSON (' + r.status + ')' }; }
 }
 
+/* 1.0.0 · El token de montaje va en el CUERPO, nunca en la dirección: una
+   dirección queda en los registros (ROADMAP 5.7 de la semilla). El maestro
+   atiende estas puertas por POST desde la 0.16.0, y desde la 1.0.0 solo así. */
 async function pedir(url, token, a, extra) {
-  const q = new URLSearchParams(Object.assign({ a, t: token }, extra || {}));
-  const r = await fetch(url + '?' + q.toString(), { redirect: 'follow' });
+  const r = await fetch(url, { method: 'POST', redirect: 'follow',
+                               headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                               body: JSON.stringify(Object.assign({ a, t: token }, extra || {})) });
   const texto = await r.text();
   try { return JSON.parse(texto); } catch { return { ok: false, error: 'respuesta que no es JSON (' + r.status + ')' }; }
 }
