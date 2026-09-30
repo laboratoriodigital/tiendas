@@ -4,7 +4,7 @@ Aquí vive lo que es **del negocio de vender tiendas**, no de una tienda:
 dar de alta una tienda nueva, conectarla con su hoja, llevar la **flota**
 —todas las tiendas publicadas— al día y publicar el panel de administración.
 Ninguna tienda ve este repositorio (es privado), y el secreto poderoso
-(`FLOTA_TOKEN`; mientras exista, también el antiguo `ALTA_TOKEN`) vive solo
+(`FLOTA_TOKEN`; el antiguo `ALTA_TOKEN` se borró el 29-sep-2026) vive solo
 aquí.
 
 El procedimiento completo de una tienda Panel —de la cuenta de Google a la
@@ -57,7 +57,7 @@ sobre qué, cómo está la flota y quién la pidió) y ninguno imprime un token.
 | `comercio` | como lo verá el comprador |
 | `producto` | `tienda` (de fábrica) · `organico` |
 
-Secretos: `FLOTA_TOKEN` (o `ALTA_TOKEN` mientras exista, que gana); `SEMILLA_TOKEN`
+Secretos: `FLOTA_TOKEN` (`ALTA_TOKEN` ganaría si alguien lo vuelve a poner); `SEMILLA_TOKEN`
 si existe. Qué hace, en orden:
 
 1. `node flota/pruebas.mjs` (sin red) y valida el formulario
@@ -96,7 +96,7 @@ también el enlace *Conectar* del panel de la flota).
 | `maestro_token` | el token `tk-…`: línea *Token* de la misma función. **El Diagnóstico del menú de la hoja no lo enseña** |
 | `forzar_permiso` | casilla, sin marcar: reemplazar el permiso de GitHub del maestro aunque el que tenga siga sirviendo |
 
-Secretos: `FLOTA_TOKEN` o `ALTA_TOKEN` (poner secretos, disparar el montaje), `DISPARO_TOKEN`,
+Secretos: `FLOTA_TOKEN` (poner secretos, disparar el montaje), `DISPARO_TOKEN`,
 `PANEL_URL`, `PANEL_CLAVE`, `SEMILLA_TOKEN`. Qué hace (`flota/conectar.mjs`):
 le pregunta al maestro su hoja y su proyecto (`identidad`) y se planta si la
 hoja dice que es de otro repositorio; escribe en la hoja `negocio`,
@@ -292,7 +292,7 @@ fuera de aquí, porque ahí cada permiso de más se ve:
 | Secreto | Para qué | Permisos mínimos |
 |---|---|---|
 | `FLOTA_TOKEN` | `flota`: leer semillas y tiendas (`estado`: `package.json`, etiquetas, pull requests abiertos), disparar y esperar montajes (`actualizar`), escribir y borrar `.github/workflows` en las tiendas (`flujos`, y `actualizar` tras cada tienda); en la Básica, ramas y pull requests. `alta` (ver la semilla, crear el repositorio, clonarla y empujarla, permisos de Actions y fusiones, poner `SEMILLA_TOKEN`) y `conectar` (secretos de la tienda, disparar su montaje) **cuando no hay `ALTA_TOKEN`**. `panel`, para leer la semilla, si no hay `ALTA_TOKEN` | Sobre todos los repositorios del dueño: *Contents*, *Pull requests*, *Workflows*, *Actions*, *Administration* y *Secrets* en lectura y escritura; *Metadata* lectura. Mientras exista `ALTA_TOKEN`, bastan los cuatro primeros |
-| `ALTA_TOKEN` | **Antiguo, para borrar.** Mientras exista, `alta`, `conectar` y `panel` lo usan antes que `FLOTA_TOKEN` (`ALTA_TOKEN \|\| FLOTA_TOKEN`); cuando no está, usan `FLOTA_TOKEN` sin cambiar nada más | *Administration*, *Contents*, *Workflows*, *Secrets* y *Actions* en lectura y escritura |
+| `ALTA_TOKEN` | **Borrado de este repositorio el 29-sep-2026.** Si reapareciera, `alta`, `conectar` y `panel` lo usan antes que `FLOTA_TOKEN` (`ALTA_TOKEN \|\| FLOTA_TOKEN`); cuando no está, usan `FLOTA_TOKEN` sin cambiar nada más | *Administration*, *Contents*, *Workflows*, *Secrets* y *Actions* en lectura y escritura |
 | `DISPARO_TOKEN` | `conectar` se lo pone al maestro de cada tienda como `GITHUB_TOKEN`, después de comprobar que ve esa tienda: Publicar y Actualizar desde el panel y el menú (el maestro dispara `fotos.yml` y `montaje.yml`, lista sus corridas y lee las etiquetas de la semilla) | **solo** *Actions* en lectura y escritura (*Metadata* lectura va siempre). Nunca otro permiso: es el que ve el comercio |
 | `SEMILLA_TOKEN` | `alta` lo copia a cada tienda y `conectar` lo refresca: la tienda lo usa para clonar la semilla al actualizarse (`montaje` con `semilla`, `montar/actualizar-semilla.mjs`) y leer sus etiquetas (`restaurar` › `la-version`). Desde la 0.22.1 ya no empuja flujos | *Contents* lectura, y basta **solo sobre la semilla** (*Only select repositories*: la tienda no necesita verse a sí misma con él, y esa lista no envejece). Solo hace falta si la semilla es privada |
 
