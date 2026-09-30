@@ -204,7 +204,23 @@ ok('  ...y un nombre con «|» no rompe la tabla', /B \\\| C/.test(tabla));
      campos(flujoCon).join() === 'nombre,maestro_url,maestro_token,forzar_permiso', campos(flujoCon).join());
   ok('  ...el alta CLONA la última etiqueta de la semilla (no necesita «Template repository») y comprueba antes el token',
      /git clone --quiet --depth 1 --branch "\$ETIQUETA"/.test(flujoAlta) && !/\/generate/.test(flujoAlta) &&
-     /ALTA_TOKEN no ve la semilla/.test(flujoAlta) && flujoAlta.indexOf('ALTA_TOKEN no ve la semilla') < flujoAlta.indexOf('gh repo create'));
+     /\$CUAL no ve la semilla/.test(flujoAlta) && flujoAlta.indexOf('$CUAL no ve la semilla') < flujoAlta.indexOf('gh repo create'));
+  /* 29-sep-2026 · UN SOLO TOKEN DEL DUEÑO AQUÍ. `ALTA_TOKEN` se funde en
+     `FLOTA_TOKEN`: mientras el viejo exista gana él, y cuando se borre todo
+     sigue con el nuevo. Y el que ve el comercio (`DISPARO_TOKEN`) y el que se
+     copia a cada tienda (`SEMILLA_TOKEN`) no se mezclan con ningún otro. */
+  const flujosServicio = ['alta', 'conectar', 'flota', 'panel'].map(f =>
+    [f, readFileSync(new URL('../.github/workflows/' + f + '.yml', import.meta.url), 'utf8')]);
+  const usosAlta = flujosServicio.flatMap(([f, y]) => (y.match(/secrets\.ALTA_TOKEN(?! &&)[^}\n]*/g) || []).map(u => f + ': ' + u));
+  const sinRelevo = usosAlta.filter(u => !/secrets\.ALTA_TOKEN \|\| secrets\.FLOTA_TOKEN/.test(u));
+  ok('UN TOKEN DEL DUEÑO: donde se usa ALTA_TOKEN, FLOTA_TOKEN lo releva (se puede borrar el viejo)',
+     usosAlta.length >= 6 && sinRelevo.length === 0, sinRelevo.join(' · ') || usosAlta.length + ' usos, todos con relevo');
+  const mezclados = flujosServicio.flatMap(([f, y]) =>
+    (y.match(/\$\{\{[^}]*\}\}/g) || []).filter(e => /DISPARO_TOKEN|SEMILLA_TOKEN/.test(e) && /\|\||&&/.test(e)).map(e => f + ': ' + e));
+  const comoGh = flujosServicio.flatMap(([f, y]) =>
+    (y.match(/GH_TOKEN: \$\{\{[^}]*\}\}/g) || []).filter(e => /DISPARO_TOKEN|SEMILLA_TOKEN/.test(e)).map(e => f + ': ' + e));
+  ok('  ...y DISPARO_TOKEN y SEMILLA_TOKEN no se funden con nada ni hacen de GH_TOKEN aquí',
+     mezclados.length === 0 && comoGh.length === 0, mezclados.concat(comoGh).join(' · ') || 'cada uno va solo');
   ok('  ...todo automático en la tienda', /allow_auto_merge=true/.test(flujoAlta) && /default_workflow_permissions=write/.test(flujoAlta));
   ok('  ...conectar tapa el token sin meterlo en el guion, y dispara el primer montaje',
      /TK: \$\{\{ inputs\.maestro_token \}\}\n\s+run: echo "::add-mask::\$TK"/.test(flujoCon) && !/run: echo "::add-mask::\$\{\{/.test(flujoCon) &&

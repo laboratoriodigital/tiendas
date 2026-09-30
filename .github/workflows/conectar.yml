@@ -7,12 +7,18 @@
 # la flota. (Aparece solo cuando este archivo está en `main`.)
 #
 # ═══ SECRETOS (en este repositorio) ═══
-#   ALTA_TOKEN     pone los secretos en la tienda y dispara su montaje.
+#   FLOTA_TOKEN    pone los secretos en la tienda y dispara su montaje (el
+#                  mismo de `flota`, con Secrets y Actions en escritura). Si
+#                  todavía existe el antiguo ALTA_TOKEN, gana él (README).
+#                  Ninguno de los dos sale de este repositorio.
 #   DISPARO_TOKEN  opcional (0.16.0 · 3.4): de grano fino, del dueño de las
 #                  tiendas, sobre todos sus repositorios, SOLO *Actions: Read
 #                  and write*. Se le pone al maestro como GITHUB_TOKEN para que
 #                  Publicar y Actualizar funcionen desde el panel y el menú.
-#                  Lo más que permite es disparar flujos de las tiendas.
+#                  Lo más que permite es disparar flujos de las tiendas. Es
+#                  el único que acaba en el maestro, donde lo ve quien
+#                  administre la cuenta de Google de la tienda: no se fusiona
+#                  con ningún otro (README › Los secretos).
 #   PANEL_URL      opcionales (0.17.0): la web app de la hoja «Panel de
 #   PANEL_CLAVE    tiendas» y la clave de su menú › Clave para el alta. Con
 #                  ellos, conectar deja la tienda registrada en esa hoja.
@@ -108,7 +114,7 @@ jobs:
 
       - name: Los secretos de la tienda, y su primer montaje
         env:
-          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN || secrets.FLOTA_TOKEN }}
           REPO: ${{ steps.tienda.outputs.repo }}
           URL: ${{ inputs.maestro_url }}
           TK: ${{ inputs.maestro_token }}

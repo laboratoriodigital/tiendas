@@ -26,12 +26,19 @@
 #
 # ═══ EL SECRETO: FLOTA_TOKEN ═══
 # De grano fino, del dueño de las tiendas, con vencimiento. Solo en ESTE
-# repositorio. Permisos, sobre los repositorios de la flota (semillas y tiendas):
+# repositorio. Permisos, sobre TODOS los repositorios del dueño (una tienda que
+# no ve contesta 404 y se salta):
 #   Contents        Read and write   ← leer la semilla, empujar la rama
-#   Pull requests   Read and write   ← abrir el pull request
+#   Pull requests   Read and write   ← abrir el pull request; `estado` los lista
 #   Workflows       Read and write   ← la semilla trae .github/workflows/*.yml
 #   Actions         Read and write   ← disparar y esperar el montaje de cada tienda
 #   Metadata        Read             (obligatorio)
+# Y, desde el 29-sep-2026, el mismo token sirve a `alta` y `conectar` en lugar
+# de ALTA_TOKEN (un solo token del dueño aquí): para eso lleva además
+#   Administration  Read and write   ← crear el repositorio, sus permisos de Actions
+#   Secrets         Read and write   ← poner los secretos de la tienda
+# `flota` no usa esos dos. Mientras exista ALTA_TOKEN, alta y conectar usan
+# ese y FLOTA_TOKEN puede quedarse con los cinco de arriba (README).
 #
 # ═══ OPCIONALES: CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID ═══
 # Con los dos, `estado` publica también `panel/` como Worker de recursos
@@ -90,7 +97,11 @@ jobs:
   flota:
     runs-on: ubuntu-latest
     # Actualizar espera el montaje de cada tienda, que corre todas las baterías.
-    timeout-minutes: 120
+    # LAS DOS HORAS SON SOLO PARA ESO. `estado` —también la revisión de los
+    # lunes— y `flujos` son unas llamadas a la API por tienda y terminan en
+    # uno o dos minutos; con el mismo tope, un `fetch` colgado de estado.mjs
+    # (a la API de GitHub no le pone reloj) se comía dos horas pagadas.
+    timeout-minutes: ${{ inputs.accion == 'actualizar' && 120 || 20 }}
     steps:
       - uses: actions/checkout@v7
 

@@ -5,7 +5,7 @@
 # después, en el flujo `conectar` (0.15.0, bitácora 70).
 #
 # Qué hace:
-#   1. Comprueba que ALTA_TOKEN alcanza a ver la semilla (y si no, lo dice).
+#   1. Comprueba que el token alcanza a ver la semilla (y si no, lo dice).
 #   2. Busca la última versión PUBLICADA de la semilla (su etiqueta vX.Y.Z).
 #   3. Crea el repositorio vacío y lo llena CLONANDO esa etiqueta: sin el
 #      catálogo, las fotos ni el dominio de la semilla, con su propio nombre de
@@ -14,9 +14,14 @@
 #   5. Su fila en flota.json, y en el resumen la LISTA de lo que falta.
 #
 # ═══ SECRETOS (solo en este repositorio) ═══
-#   ALTA_TOKEN     de grano fino, del dueño de las tiendas, sobre TODOS sus
-#                  repositorios (el nuevo todavía no existe): Administration,
-#                  Contents, Workflows, Secrets y Actions en lectura y escritura.
+#   FLOTA_TOKEN    (29-sep-2026 · un solo token del dueño en `tiendas`) el mismo
+#                  de `flota`, de grano fino, del dueño de las tiendas, sobre
+#                  TODOS sus repositorios (el nuevo todavía no existe), con lo
+#                  que necesita el alta además de lo suyo: Administration y
+#                  Secrets en lectura y escritura (README › Los secretos).
+#   ALTA_TOKEN     el de antes, solo para el alta y conectar. Mientras exista,
+#                  gana él (`ALTA_TOKEN || FLOTA_TOKEN`); cuando FLOTA_TOKEN ya
+#                  tenga esos dos permisos, se borra y no cambia nada más.
 #                  Tiene que ser del MISMO dueño donde se crean las tiendas.
 #   SEMILLA_TOKEN  opcional: se copia a cada tienda para que se actualice sola.
 name: alta
@@ -88,17 +93,25 @@ jobs:
       # EL PRIMER ALTA MURIÓ AQUÍ CON «gh: Not Found (HTTP 404)», que no dice
       # nada. Un 404 de GitHub con un token es casi siempre «este token no ve
       # ese repositorio». Se pregunta antes, y se dice qué revisar.
+      # Qué token se usa se dice por su NOMBRE (nunca su valor): con los dos
+      # puestos gana ALTA_TOKEN; sin él, FLOTA_TOKEN, que entonces necesita
+      # también Administration y Secrets.
       - name: ¿El token alcanza a ver la semilla?
         env:
-          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN || secrets.FLOTA_TOKEN }}
+          CUAL: ${{ secrets.ALTA_TOKEN && 'ALTA_TOKEN' || 'FLOTA_TOKEN' }}
           SEMILLA: ${{ steps.datos.outputs.semilla }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "### Falta el secreto \`ALTA_TOKEN\`. Ver el encabezado de alta.yml." >> "$GITHUB_STEP_SUMMARY"; exit 1
+            echo "### Falta el secreto \`FLOTA_TOKEN\` (o el antiguo \`ALTA_TOKEN\`). Ver el encabezado de alta.yml." >> "$GITHUB_STEP_SUMMARY"; exit 1
+          fi
+          echo "Token del alta: \`$CUAL\`." >> "$GITHUB_STEP_SUMMARY"
+          if [ "$CUAL" = "FLOTA_TOKEN" ]; then
+            echo "_Sin \`ALTA_TOKEN\`: \`FLOTA_TOKEN\` necesita además *Administration* y *Secrets* en lectura y escritura (README › Los secretos)._" >> "$GITHUB_STEP_SUMMARY"
           fi
           if ! gh api "repos/$SEMILLA" --jq .full_name > /dev/null 2>/tmp/e.txt; then
             {
-              echo "### ALTA_TOKEN no ve la semilla \`$SEMILLA\`"
+              echo "### $CUAL no ve la semilla \`$SEMILLA\`"
               echo ""
               echo "GitHub contesta: \`$(head -1 /tmp/e.txt)\`. Casi siempre es una de estas:"
               echo ""
@@ -115,7 +128,7 @@ jobs:
       - name: La última versión publicada de la semilla
         id: version
         env:
-          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN || secrets.FLOTA_TOKEN }}
           SEMILLA: ${{ steps.datos.outputs.semilla }}
         run: |
           etiqueta=$(gh api "repos/$SEMILLA/tags?per_page=100" --jq '.[].name' | \
@@ -128,7 +141,7 @@ jobs:
 
       - name: Crear el repositorio y llenarlo con la semilla
         env:
-          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN || secrets.FLOTA_TOKEN }}
           REPO: ${{ steps.datos.outputs.repo }}
           SEMILLA: ${{ steps.datos.outputs.semilla }}
           ETIQUETA: ${{ steps.version.outputs.etiqueta }}
@@ -150,7 +163,7 @@ jobs:
       # fusiones automáticas están permitidas y las ramas se limpian solas.
       - name: Permisos y fusiones automáticas
         env:
-          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN || secrets.FLOTA_TOKEN }}
           REPO: ${{ steps.datos.outputs.repo }}
         run: |
           gh api -X PUT "repos/$REPO/actions/permissions/workflow" \
@@ -160,7 +173,7 @@ jobs:
 
       - name: SEMILLA_TOKEN, si existe aquí
         env:
-          GH_TOKEN: ${{ secrets.ALTA_TOKEN }}
+          GH_TOKEN: ${{ secrets.ALTA_TOKEN || secrets.FLOTA_TOKEN }}
           REPO: ${{ steps.datos.outputs.repo }}
           SEMILLA_TOKEN: ${{ secrets.SEMILLA_TOKEN }}
         run: |

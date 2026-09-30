@@ -3,8 +3,9 @@
 Aquí vive lo que es **del negocio de vender tiendas**, no de una tienda:
 dar de alta una tienda nueva, conectarla con su hoja, llevar la **flota**
 —todas las tiendas publicadas— al día y publicar el panel de administración.
-Ninguna tienda ve este repositorio (es privado), y los dos secretos poderosos
-(`ALTA_TOKEN`, `FLOTA_TOKEN`) viven solo aquí.
+Ninguna tienda ve este repositorio (es privado), y el secreto poderoso
+(`FLOTA_TOKEN`; mientras exista, también el antiguo `ALTA_TOKEN`) vive solo
+aquí.
 
 El procedimiento completo de una tienda Panel —de la cuenta de Google a la
 entrega, publicar, actualizar y volver atrás— está en la semilla:
@@ -56,14 +57,16 @@ sobre qué, cómo está la flota y quién la pidió) y ninguno imprime un token.
 | `comercio` | como lo verá el comprador |
 | `producto` | `tienda` (de fábrica) · `organico` |
 
-Secretos: `ALTA_TOKEN`; `SEMILLA_TOKEN` si existe. Qué hace, en orden:
+Secretos: `FLOTA_TOKEN` (o `ALTA_TOKEN` mientras exista, que gana); `SEMILLA_TOKEN`
+si existe. Qué hace, en orden:
 
 1. `node flota/pruebas.mjs` (sin red) y valida el formulario
    (`flota/alta.mjs validar`): nombre válido, línea que exista, y que ni el
    repositorio ni el sitio `https://<nombre>.<dominio>` estén ya en
    `flota.json`.
-2. Comprueba que `ALTA_TOKEN` ve la semilla («ALTA_TOKEN no ve la semilla», con
-   las tres causas) y que el repositorio no existe.
+2. Comprueba que el token ve la semilla («FLOTA_TOKEN no ve la semilla», o
+   `ALTA_TOKEN` si es ese el que usa, con las tres causas) y que el
+   repositorio no existe.
 3. Busca **la última etiqueta publicada** `vX.Y.Z` de la semilla
    (`nucleo.mjs › ultimaEtiqueta`). No hace falta marcar la semilla como
    plantilla.
@@ -93,7 +96,7 @@ también el enlace *Conectar* del panel de la flota).
 | `maestro_token` | el token `tk-…`: línea *Token* de la misma función. **El Diagnóstico del menú de la hoja no lo enseña** |
 | `forzar_permiso` | casilla, sin marcar: reemplazar el permiso de GitHub del maestro aunque el que tenga siga sirviendo |
 
-Secretos: `ALTA_TOKEN` (poner secretos, disparar el montaje), `DISPARO_TOKEN`,
+Secretos: `FLOTA_TOKEN` o `ALTA_TOKEN` (poner secretos, disparar el montaje), `DISPARO_TOKEN`,
 `PANEL_URL`, `PANEL_CLAVE`, `SEMILLA_TOKEN`. Qué hace (`flota/conectar.mjs`):
 le pregunta al maestro su hoja y su proyecto (`identidad`) y se planta si la
 hoja dice que es de otro repositorio; escribe en la hoja `negocio`,
@@ -141,8 +144,9 @@ con `alta`. Antes de nada corre `node flota/pruebas.mjs`.
 | `version` | la etiqueta de la semilla `tienda`, **con `v`**; vacío = la última publicada |
 
 Secretos: `PANEL_SCRIPT_ID`, `PANEL_CLASPRC` (sin los dos, «Faltan los
-secretos» y no toca nada); para leer la semilla, `ALTA_TOKEN`, o
-`FLOTA_TOKEN`, o el `GITHUB_TOKEN` de la corrida. Clona la semilla en esa
+secretos» y no toca nada); para leer la semilla, `ALTA_TOKEN` si existe, si
+no `FLOTA_TOKEN`, y si no el `GITHUB_TOKEN` de la corrida (que no ve una
+semilla privada). Clona la semilla en esa
 etiqueta y corre **su** `montar/publicar-maestro.mjs` con `ARCHIVO=panel.gs`
 (la misma herramienta que publica el maestro de cada tienda, no una copia):
 sube el archivo con clasp 3 y actualiza la implementación que ya existe, sobre
@@ -259,17 +263,49 @@ termina.
 ### Los secretos (solo en este repositorio)
 
 Sin valores, obviamente. Todos los tokens de GitHub, de grano fino, del mismo
-dueño que las tiendas y **con vencimiento**; y sobre **todos** los
-repositorios del dueño, no sobre una lista: una lista fija no incluye las
-tiendas que nacen después, y GitHub contesta 404 —no 403— a lo que el token no
-ve.
+dueño que las tiendas y **con vencimiento**. Los que tienen que alcanzar a las
+tiendas, sobre **todos** los repositorios del dueño, no sobre una lista: una
+lista fija no incluye las tiendas que nacen después, y GitHub contesta 404 —no
+403— a lo que el token no ve.
+
+**Tres tokens de GitHub, y ninguno sobra** (29-sep-2026). Se juntan los que
+viven en el mismo sitio y los ve la misma gente; no se juntan los que acaban
+fuera de aquí, porque ahí cada permiso de más se ve:
+
+- `FLOTA_TOKEN` es **el token del dueño** y hace todo lo de este repositorio:
+  `alta`, `conectar`, `flota` y `panel`. Sustituye a `ALTA_TOKEN`: los dos
+  vivían solo aquí, sobre los mismos repositorios, y juntos no dan a nadie
+  nada que no tuviera ya quien ve estos secretos. Lo que cambia: `flota` (y
+  su corrida de los lunes) lleva también *Administration* y *Secrets*, que no
+  usa.
+- `DISPARO_TOKEN` acaba en las propiedades del script de **cada** maestro, que
+  ve quien administre la cuenta de Google de la tienda. Por eso lleva **solo**
+  *Actions* y no se junta con nada.
+- `SEMILLA_TOKEN` acaba en los secretos de **cada** tienda. Juntarlo con
+  `DISPARO_TOKEN` le daría al comercio *Contents* de lectura sobre todos los
+  repositorios (en grano fino, un permiso vale para toda la lista de
+  repositorios); juntarlo con `FLOTA_TOKEN` repartiría el token del dueño por
+  todas las tiendas. Sobra solo si la semilla se hace pública.
+- El `GITHUB_TOKEN` de Actions no reemplaza a ninguno: solo alcanza al
+  repositorio donde corre, y los tres trabajan sobre otros.
 
 | Secreto | Para qué | Permisos mínimos |
 |---|---|---|
-| `ALTA_TOKEN` | `alta` (crear el repositorio, llenarlo, permisos, `SEMILLA_TOKEN`) y `conectar` (secretos de la tienda, disparar su montaje). `panel` lo usa para leer la semilla | *Administration*, *Contents*, *Workflows*, *Secrets* y *Actions* en lectura y escritura |
-| `FLOTA_TOKEN` | `flota`: leer semillas y tiendas (`estado`), disparar y esperar montajes (`actualizar`), escribir `.github/workflows` en las tiendas (`flujos`, y `actualizar` tras cada tienda); en la Básica, ramas y pull requests. `panel`, si no hay `ALTA_TOKEN` | *Contents*, *Pull requests*, *Workflows* y *Actions* en lectura y escritura; *Metadata* lectura |
-| `DISPARO_TOKEN` | `conectar` se lo pone al maestro de cada tienda como `GITHUB_TOKEN`, después de comprobar que ve esa tienda: Publicar y Actualizar desde el panel y el menú | **solo** *Actions* en lectura y escritura |
-| `SEMILLA_TOKEN` | `alta` lo copia a cada tienda y `conectar` lo refresca: la tienda lo usa para leer la semilla al actualizarse (`montaje` con `semilla`) y sus etiquetas (`restaurar`). Desde la 0.22.1 ya no empuja flujos | *Contents* lectura sobre la semilla; solo hace falta si la semilla es privada |
+| `FLOTA_TOKEN` | `flota`: leer semillas y tiendas (`estado`: `package.json`, etiquetas, pull requests abiertos), disparar y esperar montajes (`actualizar`), escribir y borrar `.github/workflows` en las tiendas (`flujos`, y `actualizar` tras cada tienda); en la Básica, ramas y pull requests. `alta` (ver la semilla, crear el repositorio, clonarla y empujarla, permisos de Actions y fusiones, poner `SEMILLA_TOKEN`) y `conectar` (secretos de la tienda, disparar su montaje) **cuando no hay `ALTA_TOKEN`**. `panel`, para leer la semilla, si no hay `ALTA_TOKEN` | Sobre todos los repositorios del dueño: *Contents*, *Pull requests*, *Workflows*, *Actions*, *Administration* y *Secrets* en lectura y escritura; *Metadata* lectura. Mientras exista `ALTA_TOKEN`, bastan los cuatro primeros |
+| `ALTA_TOKEN` | **Antiguo, para borrar.** Mientras exista, `alta`, `conectar` y `panel` lo usan antes que `FLOTA_TOKEN` (`ALTA_TOKEN \|\| FLOTA_TOKEN`); cuando no está, usan `FLOTA_TOKEN` sin cambiar nada más | *Administration*, *Contents*, *Workflows*, *Secrets* y *Actions* en lectura y escritura |
+| `DISPARO_TOKEN` | `conectar` se lo pone al maestro de cada tienda como `GITHUB_TOKEN`, después de comprobar que ve esa tienda: Publicar y Actualizar desde el panel y el menú (el maestro dispara `fotos.yml` y `montaje.yml`, lista sus corridas y lee las etiquetas de la semilla) | **solo** *Actions* en lectura y escritura (*Metadata* lectura va siempre). Nunca otro permiso: es el que ve el comercio |
+| `SEMILLA_TOKEN` | `alta` lo copia a cada tienda y `conectar` lo refresca: la tienda lo usa para clonar la semilla al actualizarse (`montaje` con `semilla`, `montar/actualizar-semilla.mjs`) y leer sus etiquetas (`restaurar` › `la-version`). Desde la 0.22.1 ya no empuja flujos | *Contents* lectura, y basta **solo sobre la semilla** (*Only select repositories*: la tienda no necesita verse a sí misma con él, y esa lista no envejece). Solo hace falta si la semilla es privada |
+
+> **Riesgo abierto: `DISPARO_TOKEN` alcanza también a este repositorio.**
+> Hecho sobre todos los repositorios del dueño, incluye `tiendas`, y *Actions:
+> Read and write* basta para disparar `alta`, `conectar` o `flota` —que corren
+> con `FLOTA_TOKEN`—. Quien lo copie de las propiedades del script de una
+> tienda puede, por ejemplo, correr `conectar` con el nombre de **otra** tienda
+> y la URL de un Apps Script suyo: le cambia `MAESTRO_URL` y dispara su
+> montaje. Se cierra haciéndolo sobre *Only select repositories* (las tiendas
+> y la semilla, sin `tiendas`) y añadiendo cada tienda nueva a esa lista
+> después del alta; `conectar` ya avisa si no la ve. Pendiente de decisión.
+
 | `PANEL_URL` · `PANEL_CLAVE` | opcionales: `conectar` registra la tienda en la hoja de administración | ninguno de GitHub: la URL `/exec` de esa hoja y la clave de su menú › *Clave para el alta* |
 | `PANEL_SCRIPT_ID` | el flujo **panel** publica `panel.gs` en la hoja de administración | el id del proyecto: en la URL del editor, entre `/projects/` y `/edit` |
 | `PANEL_CLASPRC` | lo mismo: la credencial de Google de la cuenta dueña de esa hoja | el contenido de `~/.clasprc.json` de `clasp login --no-localhost` |
