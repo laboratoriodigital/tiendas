@@ -1,15 +1,15 @@
 # La flota
 
-_Lo escribe el flujo **flota** (acción `estado`). Última revisión: 2026-11-16 22:15 UTC._
+_Lo escribe el flujo **flota** (acción `estado`). Última revisión: 2026-11-23 23:59 UTC._
 
 **1 tienda(s) detrás de su semilla** (⚠). Para ponerlas al día: Actions › flota › actualizar.
 
 | Tienda | Producto | Anillo | Repositorio | Semilla | Maestro vivo | Catálogo publicado | Actualización |
 |---|---|---|---|---|---|---|---|
-| [Laboratorio Digital (semilla)](https://tienda.laboratorio-digital.com) | Tienda Panel | semilla | 1.1.3 | 1.1.3 | 2026-10-04-2 | 2026-11-16 20:49 | — |
-| [Orgánico (semilla)](https://organico.laboratoriodigital-la.workers.dev) | Tienda Básica | semilla | 3.6.2 | 3.6.0 | 2026-10-03-1 | 2026-11-15 21:04 | — |
-| [Cinnamon Beauty](https://cinnamonbeauty.laboratoriodigital-la.workers.dev) | Tienda Básica | 1 | 3.6.2 | 3.6.0 | 2026-10-03-1 | 2026-11-16 18:39 | — |
-| [prueba1](https://prueba1.laboratorio-digital.com) | Tienda Panel | 2 | 1.1.2 ⚠ | 1.1.3 | 2026-10-04-2 | 2026-11-16 20:44 | — |
+| [Laboratorio Digital (semilla)](https://tienda.laboratorio-digital.com) | Tienda Panel | semilla | 1.1.3 | 1.1.3 | 2026-10-04-2 | 2026-11-23 22:28 | — |
+| [Orgánico (semilla)](https://organico.laboratoriodigital-la.workers.dev) | Tienda Básica | semilla | 3.6.2 | 3.6.0 | 2026-10-03-1 | 2026-11-23 22:20 | — |
+| [Cinnamon Beauty](https://cinnamonbeauty.laboratoriodigital-la.workers.dev) | Tienda Básica | 1 | 3.6.2 | 3.6.0 | 2026-10-03-1 | 2026-11-23 14:50 | — |
+| [prueba1](https://prueba1.laboratorio-digital.com) | Tienda Panel | 2 | 1.1.2 ⚠ | 1.1.3 | 2026-10-04-2 | 2026-11-23 22:18 | — |
 
 «Maestro vivo» es lo que contesta la tienda publicada (su `catalogo.json`); si no coincide con
 el repositorio, falta un montaje con la casilla del maestro.
